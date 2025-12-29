@@ -1,30 +1,24 @@
-// js/main.js - ГЛАВНАЯ ЛОГИКА ПРИЛОЖЕНИЯ
+// js/main.js - ОБНОВЛЕННАЯ ЛОГИКА С ПУСТОЙ БАЗОЙ АККАУНТОВ
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Leo Assistant загружен');
     
-    // Инициализация базы данных
-    if (typeof leoDB !== 'undefined') {
-        console.log('📊 База данных инициализирована');
-    } else {
-        console.error('❌ База данных не загружена');
-        // Создаем временную базу
-        window.leoDB = {
-            getAll: () => ({ users: [], classes: {}, system: {} }),
-            authUser: () => null,
-            addUser: () => ({ success: false })
-        };
-    }
-    
     // ========== ПЕРЕМЕННЫЕ ==========
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-    const adminForm = document.getElementById('adminForm');
+    let currentMode = 'login';
     
-    // ========== ПЕРЕКЛЮЧЕНИЕ ФОРМ ==========
-    document.querySelectorAll('.form-switch').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
+    // ========== ПАНЕЛЬ ВЫБОРА РЕЖИМА ==========
+    const modeButtons = document.querySelectorAll('.mode-btn');
+    
+    modeButtons.forEach(button => {
+        button.addEventListener('click', function() {
             const target = this.getAttribute('data-target');
+            
+            // Убираем активный класс
+            modeButtons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Добавляем активный класс текущей кнопке
+            this.classList.add('active');
             
             // Скрываем все формы
             document.querySelectorAll('.form').forEach(form => {
@@ -35,6 +29,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetForm = document.getElementById(target + 'Form');
             if (targetForm) {
                 targetForm.classList.add('active');
+                currentMode = target;
+                
+                // Анимация появления
+                targetForm.style.animation = 'fadeInUp 0.6s ease';
             }
         });
     });
@@ -55,43 +53,48 @@ document.addEventListener('DOMContentLoaded', function() {
         const password = document.getElementById('loginPassword')?.value.trim();
         
         if (!login || !password) {
-            showNotification('Заполните все поля', 'error');
+            showNotification('Пожалуйста, заполните все поля', 'error');
             return;
         }
         
-        // Демо-вход (в реальности будет проверка в базе)
-        if (login === 'demo' && password === 'demo') {
-            const demoUser = {
-                id: 1,
-                name: 'Демо Пользователь',
-                avatar: 'ДП',
-                role: 'Ученик 7Б',
-                points: 1280,
-                level: 5,
-                tasks_completed: []
-            };
-            
-            localStorage.setItem('current_user', JSON.stringify(demoUser));
-            showNotification('Демо-вход успешен!', 'success');
-            
-            setTimeout(() => {
-                window.location.href = 'dashboard.html';
-            }, 1000);
-            return;
-        }
+        // Анимация кнопки
+        const btn = document.getElementById('loginBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Вход...';
+        btn.disabled = true;
         
-        // Проверка в базе данных
-        const user = leoDB.authUser(login, password);
-        if (user) {
-            showNotification(`Добро пожаловать, ${user.name}!`, 'success');
-            localStorage.setItem('current_user', JSON.stringify(user));
+        // Задержка для имитации проверки
+        setTimeout(() => {
+            // Проверка в базе данных
+            const user = leoDB.authUser(login, password);
             
-            setTimeout(() => {
-                window.location.href = 'dashboard.html';
-            }, 1000);
-        } else {
-            showNotification('Неверный логин или пароль', 'error');
-        }
+            if (user) {
+                showNotification(`Добро пожаловать, ${user.name}!`, 'success');
+                
+                // Анимация успеха
+                btn.innerHTML = '<i class="fas fa-check"></i> Успешно!';
+                btn.style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
+                
+                setTimeout(() => {
+                    localStorage.setItem('current_user', JSON.stringify(user));
+                    window.location.href = 'dashboard.html';
+                }, 1000);
+            } else {
+                // Восстанавливаем кнопку
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                
+                // Показываем уведомление
+                showNotification('Неверный логин или пароль', 'error');
+                
+                // Анимация ошибки
+                const form = document.getElementById('loginForm');
+                form.style.animation = 'shake 0.5s ease';
+                setTimeout(() => {
+                    form.style.animation = '';
+                }, 500);
+            }
+        }, 800);
     }
     
     // ========== РЕГИСТРАЦИЯ ==========
@@ -106,8 +109,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const password = document.getElementById('regPassword')?.value.trim();
         const confirmPassword = document.getElementById('regConfirmPassword')?.value.trim();
         
+        // Валидация
         if (!login || !name || !password || !confirmPassword) {
-            showNotification('Заполните все поля', 'error');
+            showNotification('Пожалуйста, заполните все поля', 'error');
             return;
         }
         
@@ -116,33 +120,62 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (password.length < 4) {
-            showNotification('Пароль должен быть не менее 4 символов', 'error');
+        if (password.length < 6) {
+            showNotification('Пароль должен быть не менее 6 символов', 'error');
             return;
         }
         
-        // Регистрация в базе данных
-        const result = leoDB.addUser({
-            login: login,
-            password: password,
-            name: name
-        });
-        
-        if (result.success) {
-            showNotification(`Аккаунт создан для ${name}!`, 'success');
-            
-            // Автоматический вход
-            const user = leoDB.authUser(login, password);
-            if (user) {
-                localStorage.setItem('current_user', JSON.stringify(user));
-                
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 1500);
-            }
-        } else {
-            showNotification(result.error || 'Ошибка регистрации', 'error');
+        if (login.length < 3) {
+            showNotification('Логин должен быть не менее 3 символов', 'error');
+            return;
         }
+        
+        // Анимация кнопки
+        const btn = document.getElementById('registerBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Создание...';
+        btn.disabled = true;
+        
+        // Задержка для имитации обработки
+        setTimeout(() => {
+            // Регистрация в базе данных
+            const result = leoDB.addUser({
+                login: login,
+                password: password,
+                name: name
+            });
+            
+            if (result.success) {
+                showNotification(`Аккаунт успешно создан для ${name}!`, 'success');
+                
+                // Анимация успеха
+                btn.innerHTML = '<i class="fas fa-check"></i> Создан!';
+                btn.style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
+                
+                // Автоматический вход
+                setTimeout(() => {
+                    const user = leoDB.authUser(login, password);
+                    if (user) {
+                        localStorage.setItem('current_user', JSON.stringify(user));
+                        window.location.href = 'dashboard.html';
+                    }
+                }, 1500);
+            } else {
+                // Восстанавливаем кнопку
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                
+                // Показываем ошибку
+                showNotification(result.error || 'Ошибка регистрации', 'error');
+                
+                // Анимация ошибки
+                const form = document.getElementById('registerForm');
+                form.style.animation = 'shake 0.5s ease';
+                setTimeout(() => {
+                    form.style.animation = '';
+                }, 500);
+            }
+        }, 1000);
     }
     
     // ========== ВХОД АДМИНИСТРАТОРА ==========
@@ -153,18 +186,49 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function handleAdminLogin() {
         const password = document.getElementById('adminPassword')?.value.trim();
-        const db = leoDB.getAll();
         
-        if (db && password === (db.system?.admin_password || 'admin123')) {
-            showNotification('Вход как администратор', 'success');
-            localStorage.setItem('is_admin', 'true');
-            
-            setTimeout(() => {
-                window.location.href = 'admin.html';
-            }, 1000);
-        } else {
-            showNotification('Неверный пароль администратора', 'error');
+        if (!password) {
+            showNotification('Введите пароль администратора', 'error');
+            return;
         }
+        
+        // Анимация кнопки
+        const btn = document.getElementById('adminBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Проверка...';
+        btn.disabled = true;
+        
+        // Задержка для имитации проверки
+        setTimeout(() => {
+            const db = leoDB.getAll();
+            const adminPassword = db.system?.admin_password || 'admin123';
+            
+            if (password === adminPassword) {
+                showNotification('Доступ разрешен. Вход как администратор', 'success');
+                
+                // Анимация успеха
+                btn.innerHTML = '<i class="fas fa-check"></i> Доступ разрешен!';
+                btn.style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
+                
+                setTimeout(() => {
+                    localStorage.setItem('is_admin', 'true');
+                    window.location.href = 'admin.html';
+                }, 1000);
+            } else {
+                // Восстанавливаем кнопку
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                
+                showNotification('Неверный пароль администратора', 'error');
+                
+                // Анимация ошибки
+                const form = document.getElementById('adminForm');
+                form.style.animation = 'shake 0.5s ease';
+                setTimeout(() => {
+                    form.style.animation = '';
+                }, 500);
+            }
+        }, 800);
     }
     
     // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
@@ -175,31 +239,59 @@ document.addEventListener('DOMContentLoaded', function() {
         notification.innerHTML = `
             <i class="fas fa-${getNotificationIcon(type)}"></i>
             <span>${message}</span>
+            <button class="notification-close" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
         `;
         
         notification.style.cssText = `
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 30px;
+            right: 30px;
             background: ${getNotificationColor(type)};
             color: white;
-            padding: 15px 20px;
-            border-radius: 8px;
+            padding: 20px 25px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
             z-index: 10000;
-            animation: slideInRight 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            animation: slideInRight 0.4s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            min-width: 300px;
+            max-width: 400px;
         `;
+        
+        // Стиль кнопки закрытия
+        notification.querySelector('.notification-close').style.cssText = `
+            margin-left: auto;
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            padding: 5px;
+            border-radius: 4px;
+        `;
+        
+        notification.querySelector('.notification-close').addEventListener('mouseover', function() {
+            this.style.opacity = '1';
+        });
+        
+        notification.querySelector('.notification-close').addEventListener('mouseout', function() {
+            this.style.opacity = '0.7';
+        });
         
         document.body.appendChild(notification);
         
-        // Удаляем через 3 секунды
+        // Автоматическое удаление через 5 секунд
         setTimeout(() => {
-            notification.style.animation = 'slideOutRight 0.3s ease';
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
+            if (notification.parentNode) {
+                notification.style.animation = 'slideOutRight 0.4s ease';
+                setTimeout(() => notification.remove(), 400);
+            }
+        }, 5000);
     }
     
     function getNotificationIcon(type) {
@@ -214,48 +306,48 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function getNotificationColor(type) {
         const colors = {
-            'success': '#10b981',
-            'error': '#ef4444',
-            'warning': '#f59e0b',
-            'info': '#3b82f6'
+            'success': 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+            'error': 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)',
+            'warning': 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
+            'info': 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)'
         };
-        return colors[type] || '#3b82f6';
+        return colors[type] || colors.info;
     }
     
-    // ========== ДЕМО-ДАННЫЕ ==========
-    // Автозаполнение для тестирования
-    const loginInput = document.getElementById('loginUsername');
-    const passwordInput = document.getElementById('loginPassword');
-    
-    if (loginInput && passwordInput) {
-        loginInput.addEventListener('focus', function() {
-            if (!this.value) {
-                this.value = 'demo';
-                passwordInput.value = 'demo';
-            }
-        });
-    }
-    
-    // ========== ГОЛОСОВОЙ ПОМОЩНИК ==========
-    // Инициализация голосового помощника при загрузке
-    if (typeof initVoiceAssistant === 'function') {
-        setTimeout(initVoiceAssistant, 1000);
-    }
-    
-    // ========== УВЕДОМЛЕНИЯ ==========
-    // Инициализация системы уведомлений
-    if (typeof NotificationSystem === 'function') {
-        window.notificationSystem = new NotificationSystem();
+    // ========== ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ ==========
+    // Анимация тряски для ошибок
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
         
-        // Показать приветственное уведомление
-        setTimeout(() => {
-            if (window.notificationSystem) {
-                window.notificationSystem.createNotification(
-                    'Добро пожаловать в Leo Assistant!',
-                    'Используйте AI помощника для учебы и отслеживайте свой прогресс.',
-                    { type: 'info', priority: 'normal' }
-                );
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
             }
-        }, 2000);
-    }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes slideOutRight {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // ========== ПРЕДУПРЕЖДЕНИЕ О ПУСТОЙ БАЗЕ ==========
+    console.log('ℹ️ База данных пользователей пуста. Новые пользователи будут добавляться при регистрации.');
 });
