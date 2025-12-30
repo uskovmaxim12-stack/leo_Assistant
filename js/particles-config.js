@@ -1,6 +1,6 @@
-// js/particles-config.js - КОНФИГУРАЦИЯ ЧАСТИЦ
+// particles-config.js - НАСТРОЙКА ЧАСТИЦ ДЛЯ ГЛАВНОГО ЭКРАНА
 
-const particlesConfig = {
+particlesJS('particles-js', {
     particles: {
         number: {
             value: 80,
@@ -10,16 +10,13 @@ const particlesConfig = {
             }
         },
         color: {
-            value: "#3b82f6"
+            value: ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b"]
         },
         shape: {
             type: "circle",
             stroke: {
                 width: 0,
                 color: "#000000"
-            },
-            polygon: {
-                nb_sides: 5
             }
         },
         opacity: {
@@ -46,19 +43,19 @@ const particlesConfig = {
             enable: true,
             distance: 150,
             color: "#8b5cf6",
-            opacity: 0.4,
+            opacity: 0.2,
             width: 1
         },
         move: {
             enable: true,
-            speed: 2,
+            speed: 1,
             direction: "none",
             random: true,
             straight: false,
             out_mode: "out",
             bounce: false,
             attract: {
-                enable: false,
+                enable: true,
                 rotateX: 600,
                 rotateY: 1200
             }
@@ -69,7 +66,7 @@ const particlesConfig = {
         events: {
             onhover: {
                 enable: true,
-                mode: "repulse"
+                mode: "grab"
             },
             onclick: {
                 enable: true,
@@ -79,9 +76,9 @@ const particlesConfig = {
         },
         modes: {
             grab: {
-                distance: 400,
+                distance: 140,
                 line_linked: {
-                    opacity: 1
+                    opacity: 0.5
                 }
             },
             bubble: {
@@ -92,7 +89,7 @@ const particlesConfig = {
                 speed: 3
             },
             repulse: {
-                distance: 100,
+                distance: 200,
                 duration: 0.4
             },
             push: {
@@ -104,14 +101,4 @@ const particlesConfig = {
         }
     },
     retina_detect: true
-};
-
-// Инициализация частиц
-function initParticles() {
-    if (window.particlesJS) {
-        particlesJS('particles-js', particlesConfig);
-    }
-}
-
-// Автоматическая инициализация при загрузке
-document.addEventListener('DOMContentLoaded', initParticles);
+});
