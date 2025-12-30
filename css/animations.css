@@ -1,42 +1,23 @@
-/* animations.css - АНИМАЦИИ И ПЕРЕХОДЫ */
+/* animations.css - ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ */
 
-/* Плавные переходы */
-.fade-enter {
-    opacity: 0;
-}
-
-.fade-enter-active {
-    opacity: 1;
-    transition: opacity 300ms ease-in;
-}
-
-.fade-exit {
-    opacity: 1;
-}
-
-.fade-exit-active {
-    opacity: 0;
-    transition: opacity 300ms ease-in;
-}
-
-/* Анимация появления */
-@keyframes scaleIn {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-    to {
-        opacity: 1;
+/* Анимация для кнопок входа */
+@keyframes pulse {
+    0%, 100% {
         transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
     }
 }
 
-.scale-in {
-    animation: scaleIn 0.3s ease;
+.btn-pulse {
+    animation: pulse 2s infinite;
 }
 
-/* Анимация вращения */
-@keyframes rotate {
+/* Анимация для загрузки */
+@keyframes spin {
     from {
         transform: rotate(0deg);
     }
@@ -45,242 +26,122 @@
     }
 }
 
-.rotate {
-    animation: rotate 2s linear infinite;
+.fa-spinner {
+    animation: spin 1s linear infinite;
 }
 
-/* Пульсация */
-@keyframes pulse-glow {
-    0%, 100% {
-        opacity: 1;
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-    }
-    50% {
-        opacity: 0.8;
-        box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
-    }
-}
-
-.pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-}
-
-/* Плавающая анимация */
-@keyframes float {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-10px);
-    }
-}
-
-.float {
-    animation: float 3s ease-in-out infinite;
-}
-
-.float-fast {
-    animation: float 1.5s ease-in-out infinite;
-}
-
-.float-slow {
-    animation: float 6s ease-in-out infinite;
-}
-
-/* Скольжение */
-@keyframes slide-up {
+/* Анимация для переключения форм */
+@keyframes formSwitch {
     from {
         opacity: 0;
-        transform: translateY(30px);
+        transform: translateY(20px) scale(0.95);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
     }
 }
 
-.slide-up {
-    animation: slide-up 0.5s ease;
+.form-transition {
+    animation: formSwitch 0.4s ease;
 }
 
-@keyframes slide-down {
+/* Анимация для уведомлений */
+@keyframes notificationSlideIn {
     from {
         opacity: 0;
-        transform: translateY(-30px);
+        transform: translateX(100%) translateY(-20px);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateX(0) translateY(0);
     }
 }
 
-.slide-down {
-    animation: slide-down 0.5s ease;
-}
-
-@keyframes slide-left {
+@keyframes notificationSlideOut {
     from {
-        opacity: 0;
-        transform: translateX(30px);
+        opacity: 1;
+        transform: translateX(0) translateY(0);
     }
     to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.slide-left {
-    animation: slide-left 0.5s ease;
-}
-
-@keyframes slide-right {
-    from {
         opacity: 0;
-        transform: translateX(-30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
+        transform: translateX(100%) translateY(-20px);
     }
 }
 
-.slide-right {
-    animation: slide-right 0.5s ease;
+.notification-slide-in {
+    animation: notificationSlideIn 0.3s ease;
 }
 
-/* Встряхивание */
-@keyframes shake {
+.notification-slide-out {
+    animation: notificationSlideOut 0.3s ease;
+}
+
+/* Анимация для инпутов */
+@keyframes inputError {
     0%, 100% {
-        transform: translateX(0);
-    }
-    10%, 30%, 50%, 70%, 90% {
-        transform: translateX(-5px);
-    }
-    20%, 40%, 60%, 80% {
-        transform: translateX(5px);
-    }
-}
-
-.shake {
-    animation: shake 0.5s ease;
-}
-
-/* Переливание цвета */
-@keyframes color-flow {
-    0% {
-        background-position: 0% 50%;
+        border-color: #ef4444;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
     }
     50% {
-        background-position: 100% 50%;
-    }
-    100% {
-        background-position: 0% 50%;
+        border-color: #ef4444;
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.2);
     }
 }
 
-.color-flow {
-    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6);
-    background-size: 200% 200%;
-    animation: color-flow 3s ease infinite;
+.input-error {
+    animation: inputError 0.5s ease;
 }
 
-/* Мерцание */
-@keyframes twinkle {
+/* Анимация для успеха */
+@keyframes successGlow {
     0%, 100% {
-        opacity: 1;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
     }
     50% {
-        opacity: 0.5;
+        box-shadow: 0 0 40px rgba(16, 185, 129, 0.8);
     }
 }
 
-.twinkle {
-    animation: twinkle 2s ease-in-out infinite;
+.success-glow {
+    animation: successGlow 2s infinite;
 }
 
-.twinkle-fast {
-    animation: twinkle 1s ease-in-out infinite;
-}
-
-.twinkle-slow {
-    animation: twinkle 3s ease-in-out infinite;
-}
-
-/* Волна */
-@keyframes wave {
-    0% {
+/* Анимация для режимов входа */
+@keyframes modeHover {
+    from {
         transform: translateY(0);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
     }
-    25% {
+    to {
         transform: translateY(-5px);
-    }
-    50% {
-        transform: translateY(0);
-    }
-    75% {
-        transform: translateY(5px);
-    }
-    100% {
-        transform: translateY(0);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
     }
 }
 
-.wave {
-    animation: wave 2s ease-in-out infinite;
+.mode-btn:hover {
+    animation: modeHover 0.3s ease forwards;
 }
 
-/* Увеличивающийся круг */
-@keyframes circle-expand {
-    from {
-        transform: scale(0);
-        opacity: 1;
+/* Анимация для логотипа */
+@keyframes logoFloat {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
     }
-    to {
-        transform: scale(3);
-        opacity: 0;
+    33% {
+        transform: translateY(-10px) rotate(2deg);
     }
-}
-
-.circle-expand {
-    animation: circle-expand 1s ease-out;
-}
-
-/* Типографская анимация */
-@keyframes typewriter {
-    from {
-        width: 0;
-    }
-    to {
-        width: 100%;
+    66% {
+        transform: translateY(5px) rotate(-2deg);
     }
 }
 
-.typewriter {
-    overflow: hidden;
-    white-space: nowrap;
-    animation: typewriter 3s steps(40, end);
+.logo-float {
+    animation: logoFloat 6s ease-in-out infinite;
 }
 
-/* Загрузочная анимация */
-.loading-dots::after {
-    content: '...';
-    animation: loading-dots 1.5s infinite;
-}
-
-@keyframes loading-dots {
-    0%, 20% {
-        content: '.';
-    }
-    40% {
-        content: '..';
-    }
-    60%, 100% {
-        content: '...';
-    }
-}
-
-/* Парящие частицы */
-@keyframes particle-float {
+/* Анимация для частиц */
+@keyframes particleFloat {
     0%, 100% {
         transform: translate(0, 0);
     }
@@ -296,296 +157,11 @@
 }
 
 .particle-float {
-    animation: particle-float 8s ease-in-out infinite;
+    animation: particleFloat 10s ease-in-out infinite;
 }
 
-/* Световая полоса */
-@keyframes light-sweep {
-    0% {
-        transform: translateX(-100%);
-    }
-    100% {
-        transform: translateX(200%);
-    }
-}
-
-.light-sweep {
-    position: relative;
-    overflow: hidden;
-}
-
-.light-sweep::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 50%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    animation: light-sweep 2s ease-in-out infinite;
-}
-
-/* Прыгающая анимация */
-@keyframes bounce {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    25% {
-        transform: translateY(-15px);
-    }
-    50% {
-        transform: translateY(0);
-    }
-    75% {
-        transform: translateY(-5px);
-    }
-}
-
-.bounce {
-    animation: bounce 1s ease;
-}
-
-.bounce-infinite {
-    animation: bounce 1s ease infinite;
-}
-
-/* Вращение 3D */
-@keyframes rotate3d {
-    from {
-        transform: rotate3d(1, 1, 1, 0deg);
-    }
-    to {
-        transform: rotate3d(1, 1, 1, 360deg);
-    }
-}
-
-.rotate3d {
-    animation: rotate3d 4s linear infinite;
-}
-
-/* Радужная анимация */
-@keyframes rainbow {
-    0% {
-        filter: hue-rotate(0deg);
-    }
-    100% {
-        filter: hue-rotate(360deg);
-    }
-}
-
-.rainbow {
-    animation: rainbow 3s linear infinite;
-}
-
-/* Затухание */
-@keyframes fade-out {
-    from {
-        opacity: 1;
-    }
-    to {
-        opacity: 0;
-    }
-}
-
-.fade-out {
-    animation: fade-out 0.5s ease forwards;
-}
-
-/* Анимация внимания */
-@keyframes attention {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.1);
-    }
-}
-
-.attention {
-    animation: attention 0.5s ease;
-}
-
-.attention-infinite {
-    animation: attention 2s ease infinite;
-}
-
-/* Анимация прогресс-бара */
-@keyframes progress {
-    from {
-        width: 0%;
-    }
-    to {
-        width: var(--progress-width, 100%);
-    }
-}
-
-.progress-animate {
-    animation: progress 2s ease-out forwards;
-}
-
-/* Анимация для уведомлений */
-@keyframes notification-pop {
-    0% {
-        opacity: 0;
-        transform: scale(0.8) translateY(20px);
-    }
-    70% {
-        transform: scale(1.05);
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-.notification-pop {
-    animation: notification-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-/* Анимация для модальных окон */
-@keyframes modal-appear {
-    from {
-        opacity: 0;
-        transform: scale(0.95) translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-.modal-appear {
-    animation: modal-appear 0.3s ease;
-}
-
-/* Анимация для всплывающих подсказок */
-@keyframes tooltip-fade {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.tooltip-fade {
-    animation: tooltip-fade 0.2s ease;
-}
-
-/* Анимация перелистывания */
-@keyframes flip {
-    from {
-        transform: perspective(400px) rotate3d(0, 1, 0, 90deg);
-        opacity: 0;
-    }
-    to {
-        transform: perspective(400px) rotate3d(0, 1, 0, 0deg);
-        opacity: 1;
-    }
-}
-
-.flip {
-    animation: flip 0.6s ease;
-}
-
-/* Анимация для загрузки контента */
-@keyframes content-load {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.content-load {
-    animation: content-load 0.5s ease;
-}
-
-/* Задержки анимаций */
-.delay-1 { animation-delay: 0.1s; }
-.delay-2 { animation-delay: 0.2s; }
-.delay-3 { animation-delay: 0.3s; }
-.delay-4 { animation-delay: 0.4s; }
-.delay-5 { animation-delay: 0.5s; }
-.delay-6 { animation-delay: 0.6s; }
-.delay-7 { animation-delay: 0.7s; }
-.delay-8 { animation-delay: 0.8s; }
-.delay-9 { animation-delay: 0.9s; }
-.delay-10 { animation-delay: 1s; }
-
-/* Длительность анимаций */
-.duration-fast { animation-duration: 0.3s; }
-.duration-normal { animation-duration: 0.5s; }
-.duration-slow { animation-duration: 1s; }
-.duration-slower { animation-duration: 2s; }
-.duration-slowest { animation-duration: 3s; }
-
-/* Заполнение анимаций */
-.animation-fill-forwards { animation-fill-mode: forwards; }
-.animation-fill-backwards { animation-fill-mode: backwards; }
-.animation-fill-both { animation-fill-mode: both; }
-
-/* Пауза анимации */
-.animation-paused { animation-play-state: paused; }
-.animation-running { animation-play-state: running; }
-
-/* Направление анимации */
-.animation-direction-normal { animation-direction: normal; }
-.animation-direction-reverse { animation-direction: reverse; }
-.animation-direction-alternate { animation-direction: alternate; }
-.animation-direction-alternate-reverse { animation-direction: alternate-reverse; }
-
-/* Функции времени */
-.ease-linear { animation-timing-function: linear; }
-.ease-ease { animation-timing-function: ease; }
-.ease-ease-in { animation-timing-function: ease-in; }
-.ease-ease-out { animation-timing-function: ease-out; }
-.ease-ease-in-out { animation-timing-function: ease-in-out; }
-.ease-cubic-bezier { animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-
-/* Повторение анимации */
-.animation-iteration-1 { animation-iteration-count: 1; }
-.animation-iteration-2 { animation-iteration-count: 2; }
-.animation-iteration-3 { animation-iteration-count: 3; }
-.animation-iteration-infinite { animation-iteration-count: infinite; }
-
-/* Анимация для скелетона (загрузки) */
-@keyframes skeleton-loading {
-    0% {
-        background-position: -200px 0;
-    }
-    100% {
-        background-position: calc(200px + 100%) 0;
-    }
-}
-
-.skeleton {
-    background: linear-gradient(90deg, var(--border) 25%, var(--border-light) 50%, var(--border) 75%);
-    background-size: 200px 100%;
-    animation: skeleton-loading 1.5s infinite;
-}
-
-/* Анимация для иконок загрузки */
-@keyframes icon-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-.icon-spin {
-    animation: icon-spin 1s linear infinite;
-}
-
-/* Анимация для текста градиента */
-@keyframes text-gradient {
+/* Анимация для градиента */
+@keyframes gradientShift {
     0% {
         background-position: 0% 50%;
     }
@@ -597,193 +173,68 @@
     }
 }
 
-.text-gradient-animate {
-    background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary));
+.gradient-animate {
     background-size: 200% 200%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: text-gradient 3s ease infinite;
+    animation: gradientShift 3s ease infinite;
 }
 
-/* Анимация для кнопок при нажатии */
-@keyframes button-press {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(0.95);
-    }
-    100% {
-        transform: scale(1);
-    }
-}
-
-.button-press {
-    animation: button-press 0.2s ease;
-}
-
-/* Анимация для чекбоксов и переключателей */
-@keyframes toggle-switch {
-    0% {
-        transform: translateX(0);
-    }
-    100% {
-        transform: translateX(100%);
-    }
-}
-
-.toggle-switch {
-    animation: toggle-switch 0.3s ease forwards;
-}
-
-.toggle-switch-reverse {
-    animation: toggle-switch 0.3s ease reverse forwards;
-}
-
-/* Анимация для всплывающих окон */
-@keyframes popup-show {
-    0% {
+/* Анимация для появления */
+@keyframes fadeInScale {
+    from {
         opacity: 0;
-        transform: scale(0.8) translateY(20px);
+        transform: scale(0.9);
     }
-    100% {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-.popup-show {
-    animation: popup-show 0.3s ease;
-}
-
-/* Анимация для скрытия элементов */
-@keyframes hide-element {
-    0% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    100% {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-}
-
-.hide-element {
-    animation: hide-element 0.3s ease forwards;
-}
-
-/* Анимация для показа элементов */
-@keyframes show-element {
-    0% {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    100% {
+    to {
         opacity: 1;
         transform: scale(1);
     }
 }
 
-.show-element {
-    animation: show-element 0.3s ease forwards;
+.fade-in-scale {
+    animation: fadeInScale 0.5s ease;
 }
 
-/* Анимация для параллакса */
-@keyframes parallax {
-    0% {
-        transform: translateY(0);
+/* Анимация для исчезновения */
+@keyframes fadeOutScale {
+    from {
+        opacity: 1;
+        transform: scale(1);
     }
-    50% {
-        transform: translateY(-10px);
+    to {
+        opacity: 0;
+        transform: scale(0.9);
     }
-    100% {
+}
+
+.fade-out-scale {
+    animation: fadeOutScale 0.3s ease forwards;
+}
+
+/* Анимация для текста */
+@keyframes textReveal {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
         transform: translateY(0);
     }
 }
 
-.parallax {
-    animation: parallax 10s ease-in-out infinite;
+.text-reveal {
+    animation: textReveal 0.6s ease;
 }
 
-/* Анимация для звездного неба */
-@keyframes star-twinkle {
-    0%, 100% {
-        opacity: 0.3;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 1;
-        transform: scale(1.1);
-    }
-}
+/* Задержки для анимаций */
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }
+.delay-5 { animation-delay: 0.5s; }
 
-.star-twinkle {
-    animation: star-twinkle 3s ease-in-out infinite;
-}
-
-/* Анимация для неонового свечения */
-@keyframes neon-glow {
-    0%, 100% {
-        filter: drop-shadow(0 0 5px currentColor);
-    }
-    50% {
-        filter: drop-shadow(0 0 15px currentColor);
-    }
-}
-
-.neon-glow {
-    animation: neon-glow 2s ease-in-out infinite;
-}
-
-/* Анимация для жидкостного эффекта */
-@keyframes liquid-flow {
-    0% {
-        border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-    }
-    50% {
-        border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
-    }
-    100% {
-        border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-    }
-}
-
-.liquid-flow {
-    animation: liquid-flow 8s ease-in-out infinite;
-}
-
-/* Анимация для шагов (пошаговое отображение) */
-.step-animation {
-    opacity: 0;
-    transform: translateY(20px);
-    animation: fadeInUp 0.5s ease forwards;
-}
-
-/* Анимация для карусели */
-@keyframes carousel-slide {
-    from {
-        transform: translateX(100%);
-    }
-    to {
-        transform: translateX(0);
-    }
-}
-
-.carousel-slide {
-    animation: carousel-slide 0.5s ease;
-}
-
-/* Анимация для диаграмм */
-@keyframes chart-grow {
-    from {
-        transform: scaleY(0);
-    }
-    to {
-        transform: scaleY(1);
-    }
-}
-
-.chart-grow {
-    animation: chart-grow 1s ease-out;
-    transform-origin: bottom;
-}
+/* Утилиты для анимаций */
+.animate-once { animation-iteration-count: 1; }
+.animate-infinite { animation-iteration-count: infinite; }
+.animate-paused { animation-play-state: paused; }
+.animate-running { animation-play-state: running; }
