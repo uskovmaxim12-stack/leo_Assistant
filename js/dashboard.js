@@ -1,8 +1,8 @@
-// js/dashboard.js - ИСПРАВЛЕННЫЙ ДАШБОРД С РЕАЛЬНЫМ РАСПИСАНИЕМ
+// js/dashboard.js - РАБОТА С ПУСТЫМИ ДАННЫМИ
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📊 Дашборд загружен');
     
-    // ========== ПРОВЕРКА АВТОРИЗАЦИИ ==========
+    // Проверка авторизации
     const userData = localStorage.getItem('current_user');
     if (!userData) {
         window.location.href = 'index.html';
@@ -10,9 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     const currentUser = JSON.parse(userData);
-    console.log('👤 Пользователь:', currentUser.name);
     
-    // ========== ИНИЦИАЛИЗАЦИЯ ==========
+    // Инициализация
     initDashboard();
     
     function initDashboard() {
@@ -20,14 +19,9 @@ document.addEventListener('DOMContentLoaded', function() {
         loadDashboardData();
         initEventListeners();
         updateDateTime();
-        
-        // Обновляем время каждую минуту
         setInterval(updateDateTime, 60000);
-        
-        console.log('✅ Дашборд инициализирован');
     }
     
-    // ========== ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ==========
     function updateUserInfo(user) {
         // Аватар и имя
         const avatar = document.getElementById('userAvatar');
@@ -38,12 +32,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (name) name.textContent = user.name;
         if (role) role.textContent = user.role === 'admin' ? 'Администратор' : 'Ученик 7Б';
         
-        // Статистика в сайдбаре
+        // Статистика
         const points = document.getElementById('statPoints');
         const level = document.getElementById('statLevel');
+        const rank = document.getElementById('statRank');
         
         if (points) points.textContent = user.points || 0;
         if (level) level.textContent = user.level || 1;
+        if (rank) rank.textContent = '-';
         
         // Приветствие
         const hour = new Date().getHours();
@@ -72,23 +68,14 @@ document.addEventListener('DOMContentLoaded', function() {
             dateElement.textContent = now.toLocaleDateString('ru-RU', options);
         }
         
-        // Обновляем расписание на сегодня
         loadTodaySchedule();
     }
     
-    // ========== ЗАГРУЗКА ДАННЫХ ==========
     function loadDashboardData() {
-        // 1. РЕЙТИНГ КЛАССА
         loadClassRating();
-        
-        // 2. РАСПИСАНИЕ
         loadTodaySchedule();
         loadFullSchedule();
-        
-        // 3. ЗАДАНИЯ
         loadTasks();
-        
-        // 4. AI ЧАТ
         initAIChat();
     }
     
@@ -98,10 +85,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateRatingUI(rating) {
-        // Находим позицию текущего пользователя
+        // Позиция пользователя
         const userPosition = rating.findIndex(s => s.id === currentUser.id) + 1;
-        
-        // Обновляем позицию пользователя
         const userRankElement = document.getElementById('userRankPosition');
         const statRankElement = document.getElementById('statRank');
         
@@ -109,64 +94,48 @@ document.addEventListener('DOMContentLoaded', function() {
         if (statRankElement) statRankElement.textContent = userPosition || '-';
         
         // Топ-3
-        if (rating.length > 0) {
-            const top1Name = document.getElementById('top1Name');
-            const top1Avatar = document.getElementById('top1Avatar');
-            const top1Points = document.getElementById('top1Points');
+        const updateTop = (position, elementPrefix) => {
+            const nameEl = document.getElementById(`${elementPrefix}Name`);
+            const avatarEl = document.getElementById(`${elementPrefix}Avatar`);
+            const pointsEl = document.getElementById(`${elementPrefix}Points`);
             
-            if (top1Name) top1Name.textContent = rating[0]?.name || '-';
-            if (top1Avatar) top1Avatar.textContent = rating[0]?.avatar || '??';
-            if (top1Points) top1Points.textContent = `${rating[0]?.points || 0} очков`;
-        }
+            if (nameEl) nameEl.textContent = rating[position]?.name || '---';
+            if (avatarEl) avatarEl.textContent = rating[position]?.avatar || '??';
+            if (pointsEl) pointsEl.textContent = rating[position] ? `${rating[position].points} очков` : '0 очков';
+        };
         
-        if (rating.length > 1) {
-            const top2Name = document.getElementById('top2Name');
-            const top2Avatar = document.getElementById('top2Avatar');
-            const top2Points = document.getElementById('top2Points');
-            
-            if (top2Name) top2Name.textContent = rating[1]?.name || '-';
-            if (top2Avatar) top2Avatar.textContent = rating[1]?.avatar || '??';
-            if (top2Points) top2Points.textContent = `${rating[1]?.points || 0} очков`;
-        }
+        updateTop(0, 'top1');
+        updateTop(1, 'top2');
+        updateTop(2, 'top3');
         
-        if (rating.length > 2) {
-            const top3Name = document.getElementById('top3Name');
-            const top3Avatar = document.getElementById('top3Avatar');
-            const top3Points = document.getElementById('top3Points');
-            
-            if (top3Name) top3Name.textContent = rating[2]?.name || '-';
-            if (top3Avatar) top3Avatar.textContent = rating[2]?.avatar || '??';
-            if (top3Points) top3Points.textContent = `${rating[2]?.points || 0} очков`;
-        }
-        
-        // Полный список рейтинга
+        // Полный список
         const listContainer = document.getElementById('fullRatingList');
-        if (listContainer) {
-            listContainer.innerHTML = '';
-            
-            if (rating.length === 0) {
-                listContainer.innerHTML = `
-                    <div class="empty-rating">
-                        <i class="fas fa-users"></i>
-                        <p>Рейтинг пока пуст</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            rating.forEach((student, index) => {
-                const item = document.createElement('div');
-                item.className = `rating-item ${student.id === currentUser.id ? 'current-user' : ''}`;
-                item.innerHTML = `
-                    <div class="item-rank">${index + 1}</div>
-                    <div class="item-avatar">${student.avatar || '??'}</div>
-                    <div class="item-name">${student.name}</div>
-                    <div class="item-points">${student.points || 0}</div>
-                    <div class="item-tasks">${Math.floor((student.points || 0) / 50)}</div>
-                `;
-                listContainer.appendChild(item);
-            });
+        if (!listContainer) return;
+        
+        listContainer.innerHTML = '';
+        
+        if (rating.length === 0) {
+            listContainer.innerHTML = `
+                <div class="empty-rating">
+                    <i class="fas fa-users"></i>
+                    <p>Рейтинг пока пуст</p>
+                </div>
+            `;
+            return;
         }
+        
+        rating.forEach((student, index) => {
+            const item = document.createElement('div');
+            item.className = `rating-item ${student.id === currentUser.id ? 'current-user' : ''}`;
+            item.innerHTML = `
+                <div class="item-rank">${index + 1}</div>
+                <div class="item-avatar">${student.avatar || '??'}</div>
+                <div class="item-name">${student.name}</div>
+                <div class="item-points">${student.points || 0}</div>
+                <div class="item-tasks">${Math.floor((student.points || 0) / 50)}</div>
+            `;
+            listContainer.appendChild(item);
+        });
     }
     
     function loadTodaySchedule() {
@@ -189,20 +158,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const now = new Date();
         const currentTime = now.getHours() * 60 + now.getMinutes();
         
-        todaySchedule.lessons.forEach((lesson, index) => {
-            // Парсим время урока
-            const [startStr, endStr] = lesson.time.split('-');
+        todaySchedule.lessons.forEach((lesson) => {
+            const [startStr] = lesson.time.split('-');
             const [startHour, startMinute] = startStr.split(':').map(Number);
-            const [endHour, endMinute] = endStr.split(':').map(Number);
-            
             const lessonStart = startHour * 60 + startMinute;
-            const lessonEnd = endHour * 60 + endMinute;
             
-            // Определяем статус урока
             let status = 'upcoming';
-            if (currentTime >= lessonStart && currentTime <= lessonEnd) {
+            if (currentTime >= lessonStart - 10 && currentTime <= lessonStart + 40) {
                 status = 'current';
-            } else if (currentTime > lessonEnd) {
+            } else if (currentTime > lessonStart + 40) {
                 status = 'completed';
             }
             
@@ -215,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="lesson-info">
                     <div class="lesson-name">${lesson.subject}</div>
-                    <div class="lesson-room">Каб. ${lesson.room}</div>
+                    <div class="lesson-room">${lesson.room.includes('/') ? lesson.room : `Каб. ${lesson.room}`}</div>
                 </div>
             `;
             container.appendChild(lessonItem);
@@ -224,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function loadFullSchedule() {
         const fullSchedule = leoDB.getSchedule();
-        const scheduleList = document.querySelector('.schedule-list');
+        const scheduleList = document.getElementById('scheduleList');
         
         if (!scheduleList || !fullSchedule) return;
         
@@ -239,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="schedule-lesson">
                         <span class="lesson-time">${lesson.time}</span>
                         <span class="lesson-subject">${lesson.subject}</span>
-                        <span class="lesson-room">Каб. ${lesson.room}</span>
+                        <span class="lesson-room">${lesson.room.includes('/') ? lesson.room : `Каб. ${lesson.room}`}</span>
                     </div>
                 `).join('')}
             `;
@@ -265,82 +229,62 @@ document.addEventListener('DOMContentLoaded', function() {
             tasksCountElement.textContent = pendingTasks.length;
         }
         
-        // Ближайшие задания (виджет)
+        // Ближайшие задания
         const upcomingContainer = document.getElementById('upcomingTasks');
-        if (upcomingContainer) {
-            upcomingContainer.innerHTML = '';
-            
-            if (pendingTasks.length === 0) {
-                upcomingContainer.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-check-circle"></i>
-                        <p>Все задания выполнены!</p>
-                    </div>
-                `;
-            } else {
-                pendingTasks.slice(0, 3).forEach(task => {
-                    const priorityClass = `priority-${task.priority}`;
-                    const dueDate = new Date(task.dueDate).toLocaleDateString('ru-RU');
-                    
-                    const taskItem = document.createElement('div');
-                    taskItem.className = 'task-item';
-                    taskItem.innerHTML = `
-                        <div class="task-info">
-                            <div class="task-subject ${priorityClass}">${task.subject}</div>
-                            <div class="task-title">${task.title}</div>
-                            <div class="task-due">
-                                До ${dueDate}
-                            </div>
-                        </div>
-                        <button class="btn-small btn-complete" data-task-id="${task.id}">
-                            <i class="fas fa-check"></i>
-                        </button>
-                    `;
-                    upcomingContainer.appendChild(taskItem);
-                });
-            }
+        if (!upcomingContainer) return;
+        
+        upcomingContainer.innerHTML = '';
+        
+        if (tasks.length === 0) {
+            upcomingContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-clipboard-list"></i>
+                    <p>Заданий пока нет</p>
+                    <small>Учитель добавит задания позже</small>
+                </div>
+            `;
+            return;
         }
+        
+        if (pendingTasks.length === 0) {
+            upcomingContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-check-circle"></i>
+                    <p>Все задания выполнены!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        pendingTasks.slice(0, 3).forEach(task => {
+            const dueDate = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : 'Без срока';
+            
+            const taskItem = document.createElement('div');
+            taskItem.className = 'task-item';
+            taskItem.innerHTML = `
+                <div class="task-info">
+                    <div class="task-subject">${task.subject || 'Без предмета'}</div>
+                    <div class="task-title">${task.title || 'Новое задание'}</div>
+                    <div class="task-due">
+                        ${dueDate}
+                    </div>
+                </div>
+                <button class="btn-small btn-complete" data-task-id="${task.id}">
+                    <i class="fas fa-check"></i>
+                </button>
+            `;
+            upcomingContainer.appendChild(taskItem);
+        });
     }
     
-    // ========== AI ЧАТ ==========
     function initAIChat() {
         const chatInput = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendMessage');
-        const quickInput = document.getElementById('quickQuestion');
-        const quickBtn = document.getElementById('askQuickBtn');
         
         if (chatInput && sendBtn) {
             sendBtn.addEventListener('click', sendMessage);
             chatInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') sendMessage();
-            });
-        }
-        
-        if (quickInput && quickBtn) {
-            quickBtn.addEventListener('click', sendQuickMessage);
-            quickInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendQuickMessage();
-            });
-        }
-        
-        // Кнопка очистки чата
-        const clearBtn = document.getElementById('clearChat');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                const chatMessages = document.getElementById('chatMessages');
-                if (chatMessages) {
-                    chatMessages.innerHTML = `
-                        <div class="chat-message ai-message">
-                            <div class="chat-avatar">🤖</div>
-                            <div class="chat-content">
-                                <div class="chat-text">
-                                    История очищена. Чем могу помочь?
-                                </div>
-                                <div class="chat-time">Только что</div>
-                            </div>
-                        </div>
-                    `;
-                }
             });
         }
     }
@@ -353,88 +297,47 @@ document.addEventListener('DOMContentLoaded', function() {
         addMessageToChat(message, 'user');
         input.value = '';
         
-        // Имитация "думания" AI
         setTimeout(() => {
             const response = getAIResponse(message);
             addMessageToChat(response, 'ai');
         }, 800);
     }
     
-    function sendQuickMessage() {
-        const input = document.getElementById('quickQuestion');
-        const message = input?.value.trim();
-        if (!message || !input) return;
-        
-        const response = getAIResponse(message);
-        const answerContainer = document.getElementById('quickAnswer');
-        
-        if (answerContainer) {
-            answerContainer.innerHTML = `
-                <div class="ai-response">
-                    <strong>Лео:</strong> ${response}
-                </div>
-            `;
-            answerContainer.style.display = 'block';
-        }
-        
-        input.value = '';
-        
-        // Скрываем ответ через 10 секунд
-        setTimeout(() => {
-            if (answerContainer) {
-                answerContainer.style.display = 'none';
-            }
-        }, 10000);
-    }
-    
     function getAIResponse(message) {
         const lowerMsg = message.toLowerCase();
-        const db = leoDB.getAll();
-        const knowledge = db?.ai_knowledge || {};
         
-        // Проверяем ключевые слова
+        // Базовые ответы (без придуманных знаний)
         if (lowerMsg.includes('привет') || lowerMsg.includes('здравств')) {
-            const greetings = knowledge.greetings || ["Привет!", "Здравствуй!"];
-            return greetings[Math.floor(Math.random() * greetings.length)];
+            return "Привет! Я Лео, твой учебный помощник. Чем могу помочь?";
         }
         
-        if (lowerMsg.includes('расписан') || lowerMsg.includes('урок')) {
+        if (lowerMsg.includes('расписан')) {
             const today = leoDB.getTodaySchedule();
             if (today && today.lessons && today.lessons.length > 0) {
-                return `Сегодня у вас ${today.lessons.length} уроков: ${today.lessons.map(l => l.subject).join(', ')}.`;
+                return `Сегодня у вас ${today.lessons.length} уроков. Расписание можно посмотреть в разделе "Расписание".`;
             }
             return "Расписание можно посмотреть в соответствующем разделе.";
         }
         
-        if (lowerMsg.includes('задан') || lowerMsg.includes('домашк')) {
+        if (lowerMsg.includes('задан')) {
             const tasks = leoDB.getTasks();
             const pendingTasks = tasks.filter(t => !currentUser.tasks_completed?.includes(t.id));
             
             if (pendingTasks.length > 0) {
                 return `У вас ${pendingTasks.length} заданий. Посмотрите в разделе "Задания".`;
             }
-            return "Все задания выполнены!";
+            return "Заданий пока нет.";
         }
         
-        if (lowerMsg.includes('очк') || lowerMsg.includes('балл')) {
-            return `У вас ${currentUser.points || 0} очков. Так держать!`;
+        if (lowerMsg.includes('очк')) {
+            return `У вас ${currentUser.points || 0} очков.`;
         }
         
-        if (lowerMsg.includes('рейтинг') || lowerMsg.includes('место')) {
-            const rating = leoDB.getClassRating();
-            const userPosition = rating.findIndex(s => s.id === currentUser.id) + 1;
-            return `Ваше место в рейтинге: ${userPosition || '?'}.`;
+        if (lowerMsg.includes('рейтинг')) {
+            return "Рейтинг можно посмотреть в соответствующем разделе.";
         }
         
-        // Проверяем предметы
-        const subjects = knowledge.subjects || {};
-        for (const [subject, description] of Object.entries(subjects)) {
-            if (lowerMsg.includes(subject)) {
-                return description;
-            }
-        }
-        
-        return "Попробуйте спросить о расписании, заданиях или каком-либо предмете.";
+        return "Я еще учусь. Администратор может добавить ответы на часто задаваемые вопросы в панели управления.";
     }
     
     function addMessageToChat(text, sender) {
@@ -461,7 +364,6 @@ document.addEventListener('DOMContentLoaded', function() {
         container.scrollTop = container.scrollHeight;
     }
     
-    // ========== ОБРАБОТЧИКИ СОБЫТИЙ ==========
     function initEventListeners() {
         // Навигация
         const navItems = document.querySelectorAll('.nav-item');
@@ -469,26 +371,20 @@ document.addEventListener('DOMContentLoaded', function() {
             item.addEventListener('click', function(e) {
                 e.preventDefault();
                 
-                // Убираем активный класс
                 navItems.forEach(nav => nav.classList.remove('active'));
-                
-                // Добавляем текущему
                 this.classList.add('active');
                 
-                // Показываем нужную секцию
                 const section = this.getAttribute('data-section');
                 showSection(section);
             });
         });
         
-        // Переключение сайдбара
+        // Сайдбар
         const toggleBtn = document.getElementById('toggleSidebar');
         if (toggleBtn) {
             toggleBtn.addEventListener('click', function() {
                 const sidebar = document.querySelector('.dashboard-sidebar');
-                if (sidebar) {
-                    sidebar.classList.toggle('collapsed');
-                }
+                if (sidebar) sidebar.classList.toggle('collapsed');
             });
         }
         
@@ -502,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Выход из системы
+        // Выход
         const logoutBtn = document.querySelector('.logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', function() {
@@ -513,17 +409,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function showSection(sectionId) {
-        // Скрываем все секции
         document.querySelectorAll('.content-section').forEach(section => {
             section.classList.remove('active');
         });
         
-        // Показываем нужную
         const targetSection = document.getElementById(`section-${sectionId}`);
         if (targetSection) {
             targetSection.classList.add('active');
             
-            // Загружаем данные для секции если нужно
             if (sectionId === 'rating') {
                 loadClassRating();
             } else if (sectionId === 'schedule') {
@@ -538,20 +431,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const success = leoDB.completeTask(currentUser.id, taskId);
         
         if (success) {
-            // Обновляем данные пользователя
             const db = leoDB.getAll();
             const updatedUser = db.users.find(u => u.id === currentUser.id);
             
             if (updatedUser) {
-                // Обновляем текущего пользователя
                 Object.assign(currentUser, updatedUser);
                 localStorage.setItem('current_user', JSON.stringify(updatedUser));
                 
-                // Обновляем UI
                 updateUserInfo(currentUser);
                 loadDashboardData();
                 
-                // Показываем уведомление
                 showNotification('✅ Задание выполнено! +50 очков', 'success');
             }
         } else {
@@ -559,7 +448,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
     function showNotification(message, type = 'info') {
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
@@ -586,7 +474,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         document.body.appendChild(notification);
         
-        // Удаляем через 3 секунды
         setTimeout(() => {
             notification.style.animation = 'slideOut 0.3s ease';
             setTimeout(() => notification.remove(), 300);
