@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leo Assistant - Умный помощник для 7Б</title>
+    <title>Leo Assistant</title>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/animations.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,26 +13,26 @@
         <!-- Частицы на фоне -->
         <div id="particles-js"></div>
         
-        <!-- Главный контент -->
         <div class="main-content">
-            <!-- Логотип и заголовок -->
             <div class="logo-section">
                 <div class="logo">
                     <div class="logo-icon">🤖</div>
                     <h1 class="logo-text">Leo Assistant</h1>
                 </div>
-                <p class="tagline">Персональный AI-помощник для 7Б класса</p>
+                <p class="tagline">Искусственный интеллект для 7Б класса</p>
             </div>
 
-            <!-- Формы входа/регистрации -->
+            <!-- Формы -->
             <div class="form-container">
                 <!-- Форма входа -->
                 <div id="loginForm" class="form active">
                     <h2>Вход в систему</h2>
                     <div class="input-group">
+                        <i class="fas fa-user"></i>
                         <input type="text" id="loginUsername" placeholder="Логин" required>
                     </div>
                     <div class="input-group">
+                        <i class="fas fa-lock"></i>
                         <input type="password" id="loginPassword" placeholder="Пароль" required>
                     </div>
                     <button id="loginBtn" class="btn-primary">
@@ -48,15 +48,19 @@
                 <div id="registerForm" class="form">
                     <h2>Регистрация</h2>
                     <div class="input-group">
+                        <i class="fas fa-user-plus"></i>
                         <input type="text" id="regLogin" placeholder="Придумайте логин" required>
                     </div>
                     <div class="input-group">
+                        <i class="fas fa-user"></i>
                         <input type="text" id="regName" placeholder="Ваше имя" required>
                     </div>
                     <div class="input-group">
+                        <i class="fas fa-lock"></i>
                         <input type="password" id="regPassword" placeholder="Пароль" required>
                     </div>
                     <div class="input-group">
+                        <i class="fas fa-lock"></i>
                         <input type="password" id="regConfirmPassword" placeholder="Повторите пароль" required>
                     </div>
                     <button id="registerBtn" class="btn-primary">
@@ -71,6 +75,7 @@
                 <div id="adminForm" class="form">
                     <h2>Администратор</h2>
                     <div class="input-group">
+                        <i class="fas fa-key"></i>
                         <input type="password" id="adminPassword" placeholder="Пароль администратора" required>
                     </div>
                     <button id="adminBtn" class="btn-admin">
@@ -82,7 +87,7 @@
                 </div>
             </div>
 
-            <!-- Дополнительная информация -->
+            <!-- Фичи -->
             <div class="features">
                 <div class="feature">
                     <i class="fas fa-robot"></i>
@@ -102,7 +107,7 @@
             </div>
         </div>
 
-        <!-- Визуализация нейросети -->
+        <!-- Нейросеть -->
         <div class="neural-network">
             <div class="neural-node"></div>
             <div class="neural-node"></div>
@@ -112,7 +117,7 @@
         </div>
     </div>
 
-    <!-- JavaScript -->
+    <!-- Скрипты -->
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <script src="js/particles-config.js"></script>
     <script src="js/database.js"></script>
