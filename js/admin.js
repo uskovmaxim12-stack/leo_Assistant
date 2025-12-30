@@ -1,1318 +1,108 @@
-// js/admin.js - ЛОГИКА АДМИН-ПАНЕЛИ
+// js/admin.js - ПОЛНАЯ ЛОГИКА АДМИН-ПАНЕЛИ
 class AdminPanel {
     constructor() {
-        this.db = leoDB;
-        this.currentData = null;
         this.init();
     }
     
     init() {
         console.log('🚀 Админ-панель инициализирована');
         
-        // Загрузка данных
-        this.loadData();
+        // Проверка авторизации
+        this.checkAuth();
         
-        // Инициализация навигации
+        // Инициализация компонентов
         this.initNavigation();
-        
-        // Инициализация статистики
-        this.updateStats();
-        
-        // Инициализация таблиц
-        this.initUsersTable();
-        this.initTasksTable();
-        this.initKnowledgeTable();
-        
-        // Инициализация событий
+        this.initDatabase();
+        this.initStatistics();
+        this.initUsers();
+        this.initTasks();
+        this.initAI();
         this.initEvents();
         
-        // Обновление данных каждые 30 секунд
-        setInterval(() => this.updateStats(), 30000);
+        // Обновление данных
+        this.updateAllData();
     }
     
-    // ==================== ОСНОВНЫЕ МЕТОДЫ ====================
+    // ==================== АВТОРИЗАЦИЯ ====================
     
-    loadData() {
-        this.currentData = this.db.getAll();
-        if (!this.currentData) {
-            console.error('❌ Ошибка загрузки данных');
-            return;
+    checkAuth() {
+        if (!localStorage.getItem('is_admin')) {
+            window.location.href = 'index.html';
+            return false;
         }
-        
-        // Обновляем счетчики в навигации
-        this.updateNavCounters();
+        return true;
     }
     
-    updateNavCounters() {
-        const db = this.currentData;
-        
-        document.getElementById('usersCount').textContent = 
-            db.users?.length || 0;
-        
-        document.getElementById('tasksCount').textContent = 
-            db.classes?.['7B']?.tasks?.length || 0;
-        
-        const aiCount = Object.keys(db.ai_knowledge || {}).length;
-        document.getElementById('aiCount').textContent = aiCount;
-        
-        document.getElementById('notificationsCount').textContent = 
-            db.notifications?.length || 0;
-    }
+    // ==================== БАЗА ДАННЫХ ====================
     
-    // ==================== СТАТИСТИКА ====================
-    
-    updateStats() {
-        const db = this.currentData;
-        
-        // Обновляем основные статистики
-        document.getElementById('statUsers').textContent = db.users?.length || 0;
-        document.getElementById('statTasks').textContent = 
-            db.classes?.['7B']?.tasks?.length || 0;
-        
-        const aiKnowledge = Object.keys(db.ai_knowledge || {}).length;
-        document.getElementById('statAI').textContent = aiKnowledge;
-        
-        // Расчет проблем (пользователи без активности)
-        let issues = 0;
-        if (db.users) {
-            // Простая логика: если пользователь без очков - проблема
-            issues = db.users.filter(u => u.points === 0).length;
-        }
-        document.getElementById('statIssues').textContent = issues;
-        
-        // Обновляем системную информацию
-        document.getElementById('systemVersion').textContent = 
-            db.system?.version || '1.0.0';
-        document.getElementById('totalLogins').textContent = 
-            db.system?.total_logins || 0;
-        
-        // Рассчитываем объем данных
-        const dataSize = JSON.stringify(db).length;
-        document.getElementById('dataSize').textContent = 
-            Math.round(dataSize / 1024) + ' KB';
-        
-        // Обновляем активность
-        this.updateActivityList();
-        
-        // Обновляем аналитику
-        this.updateAnalytics();
-    }
-    
-    updateActivityList() {
-        const activityList = document.getElementById('activityList');
-        if (!activityList) return;
-        
-        const db = this.currentData;
-        const activities = [];
-        
-        // Собираем активности из данных
-        if (db.users) {
-            db.users.forEach(user => {
-                activities.push({
-                    type: 'user',
-                    text: `${user.name} зарегистрировался`,
-                    time: user.created_at,
-                    icon: 'fas fa-user-plus'
-                });
-                
-                if (user.tasks_completed && user.tasks_completed.length > 0) {
-                    activities.push({
-                        type: 'task',
-                        text: `${user.name} выполнил задание`,
-                        time: new Date().toISOString(),
-                        icon: 'fas fa-check-circle'
-                    });
-                }
-            });
-        }
-        
-        // Сортируем по времени (новые сверху)
-        activities.sort((a, b) => new Date(b.time) - new Date(a.time));
-        
-        // Отображаем только последние 5 активностей
-        const recentActivities = activities.slice(0, 5);
-        
-        activityList.innerHTML = '';
-        
-        if (recentActivities.length === 0) {
-            activityList.innerHTML = `
-                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
-                    <i class="fas fa-history" style="font-size: 24px; margin-bottom: 10px;"></i>
-                    <p>Нет активности</p>
-                </div>
-            `;
-            return;
-        }
-        
-        recentActivities.forEach(activity => {
-            const time = new Date(activity.time);
-            const timeStr = time.toLocaleTimeString('ru-RU', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            
-            const activityElement = document.createElement('div');
-            activityElement.className = 'notification-item';
-            activityElement.style.cssText = `
-                margin-bottom: 10px;
-                animation: fadeIn 0.3s ease;
-            `;
-            
-            activityElement.innerHTML = `
-                <div class="notification-icon" style="background: rgba(139, 92, 246, 0.2); color: var(--admin-primary);">
-                    <i class="${activity.icon}"></i>
-                </div>
-                <div class="notification-info">
-                    <h4>${activity.text}</h4>
-                    <p>${timeStr}</p>
-                </div>
-            `;
-            
-            activityList.appendChild(activityElement);
-        });
-    }
-    
-    // ==================== ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ ====================
-    
-    initUsersTable() {
-        this.renderUsersTable();
-        
-        // Поиск пользователей
-        const searchInput = document.getElementById('userSearch');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.filterUsersTable(e.target.value);
-            });
-        }
-        
-        // Фильтр пользователей
-        const filterSelect = document.getElementById('userFilter');
-        if (filterSelect) {
-            filterSelect.addEventListener('change', (e) => {
-                this.filterUsersTable('', e.target.value);
-            });
-        }
-    }
-    
-    renderUsersTable() {
-        const tbody = document.getElementById('usersTableBody');
-        if (!tbody) return;
-        
-        const db = this.currentData;
-        const users = db.users || [];
-        
-        if (users.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="empty-state">
-                        <i class="fas fa-users"></i>
-                        <h3>Нет пользователей</h3>
-                        <p>Создайте первого пользователя</p>
-                        <button class="btn-admin btn-admin-primary" id="emptyStateUserBtn" 
-                                style="margin-top: 15px;">
-                            <i class="fas fa-user-plus"></i>
-                            Создать пользователя
-                        </button>
-                    </td>
-                </tr>
-            `;
-            
-            document.getElementById('emptyStateUserBtn')?.addEventListener('click', () => {
-                this.showUserModal();
-            });
-            return;
-        }
-        
-        // Сортируем по очкам (по убыванию)
-        const sortedUsers = [...users].sort((a, b) => b.points - a.points);
-        
-        tbody.innerHTML = '';
-        
-        sortedUsers.forEach(user => {
-            const row = document.createElement('tr');
-            
-            // Определяем статус пользователя
-            let statusBadge = '';
-            let statusText = '';
-            
-            if (user.role === 'admin') {
-                statusBadge = 'badge-danger';
-                statusText = 'Админ';
-            } else if (user.points > 1000) {
-                statusBadge = 'badge-success';
-                statusText = 'Активен';
-            } else if (user.points === 0) {
-                statusBadge = 'badge-warning';
-                statusText = 'Новичок';
-            } else {
-                statusBadge = 'badge-primary';
-                statusText = 'Ученик';
-            }
-            
-            row.innerHTML = `
-                <td>${user.id}</td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="admin-avatar" style="width: 40px; height: 40px; font-size: 16px;">
-                            ${user.avatar}
-                        </div>
-                        <div>
-                            <div style="font-weight: 600;">${user.name}</div>
-                            <div style="font-size: 12px; color: var(--text-muted);">@${user.login}</div>
-                        </div>
-                    </div>
-                </td>
-                <td>${user.class || '7Б'}</td>
-                <td>
-                    <div style="font-weight: 700; color: var(--admin-primary);">
-                        ${user.points}
-                    </div>
-                </td>
-                <td>
-                    <div>${user.tasks_completed?.length || 0}</div>
-                </td>
-                <td>
-                    <span class="badge ${statusBadge}">${statusText}</span>
-                </td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn-action btn-edit" data-user-id="${user.id}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-action btn-delete" data-user-id="${user.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                        ${user.role !== 'admin' ? `
-                        <button class="btn-action btn-reset" data-user-id="${user.id}">
-                            <i class="fas fa-redo"></i>
-                        </button>` : ''}
-                    </div>
-                </td>
-            `;
-            
-            tbody.appendChild(row);
-        });
-        
-        // Добавляем обработчики событий для кнопок действий
-        this.initUserActionButtons();
-    }
-    
-    filterUsersTable(searchTerm = '', filter = 'all') {
-        const tbody = document.getElementById('usersTableBody');
-        const rows = tbody.querySelectorAll('tr');
-        
-        rows.forEach(row => {
-            const name = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
-            const role = row.querySelector('td:nth-child(6)')?.textContent.toLowerCase() || '';
-            
-            let showRow = true;
-            
-            // Применяем поиск
-            if (searchTerm && !name.includes(searchTerm.toLowerCase())) {
-                showRow = false;
-            }
-            
-            // Применяем фильтр
-            if (filter !== 'all') {
-                if (filter === 'students' && role !== 'ученик' && role !== 'новичок') {
-                    showRow = false;
-                } else if (filter === 'teachers' && role !== 'админ' && role !== 'учитель') {
-                    showRow = false;
+    initDatabase() {
+        this.db = {
+            name: 'leo_admin_db',
+            get: () => {
+                const data = localStorage.getItem(this.db.name);
+                return data ? JSON.parse(data) : null;
+            },
+            save: (data) => {
+                localStorage.setItem(this.db.name, JSON.stringify(data));
+            },
+            init: () => {
+                if (!localStorage.getItem(this.db.name)) {
+                    const initialData = {
+                        users: [],
+                        tasks: [],
+                        ai_knowledge: {
+                            math: ['Математика изучает числа и их свойства'],
+                            physics: ['Физика - наука о природе'],
+                            history: ['История изучает прошлое человечества'],
+                            general: ['AI готов помогать с учебой']
+                        },
+                        system: {
+                            version: '1.0.0',
+                            total_logins: Math.floor(Math.random() * 100) + 50,
+                            start_date: new Date().toISOString(),
+                            last_backup: null
+                        },
+                        notifications: []
+                    };
+                    this.db.save(initialData);
                 }
             }
-            
-            row.style.display = showRow ? '' : 'none';
-        });
-    }
-    
-    initUserActionButtons() {
-        // Кнопка редактирования
-        document.querySelectorAll('.btn-edit').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const userId = parseInt(e.currentTarget.getAttribute('data-user-id'));
-                this.editUser(userId);
-            });
-        });
-        
-        // Кнопка удаления
-        document.querySelectorAll('.btn-delete').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const userId = parseInt(e.currentTarget.getAttribute('data-user-id'));
-                this.deleteUser(userId);
-            });
-        });
-        
-        // Кнопка сброса
-        document.querySelectorAll('.btn-reset').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const userId = parseInt(e.currentTarget.getAttribute('data-user-id'));
-                this.resetUser(userId);
-            });
-        });
-    }
-    
-    editUser(userId) {
-        const db = this.currentData;
-        const user = db.users.find(u => u.id === userId);
-        
-        if (!user) return;
-        
-        // Заполняем модальное окно данными пользователя
-        document.getElementById('modalUserName').value = user.name;
-        document.getElementById('modalUserLogin').value = user.login;
-        document.getElementById('modalUserClass').value = user.class || '7B';
-        document.getElementById('modalUserRole').value = user.role || 'student';
-        
-        // Показываем модальное окно
-        this.showUserModal('edit', user.id);
-    }
-    
-    deleteUser(userId) {
-        this.showConfirmModal(
-            'Удаление пользователя',
-            'Вы уверены, что хотите удалить этого пользователя? Это действие нельзя отменить.',
-            () => {
-                const db = this.currentData;
-                const userIndex = db.users.findIndex(u => u.id === userId);
-                
-                if (userIndex !== -1) {
-                    // Удаляем пользователя из общего списка
-                    db.users.splice(userIndex, 1);
-                    
-                    // Удаляем из класса
-                    const classStudents = db.classes?.['7B']?.students;
-                    if (classStudents) {
-                        const studentIndex = classStudents.findIndex(s => s.id === userId);
-                        if (studentIndex !== -1) {
-                            classStudents.splice(studentIndex, 1);
-                        }
-                    }
-                    
-                    this.db.save(db);
-                    this.loadData();
-                    this.renderUsersTable();
-                    this.updateStats();
-                    
-                    this.showInfoModal('Пользователь удален', 'success');
-                }
-            }
-        );
-    }
-    
-    resetUser(userId) {
-        this.showConfirmModal(
-            'Сброс прогресса',
-            'Вы уверены, что хотите сбросить прогресс пользователя? Все очки и выполненные задания будут удалены.',
-            () => {
-                const db = this.currentData;
-                const user = db.users.find(u => u.id === userId);
-                
-                if (user) {
-                    user.points = 0;
-                    user.tasks_completed = [];
-                    user.level = 1;
-                    
-                    // Обновляем в классе
-                    const studentInClass = db.classes?.['7B']?.students?.find(s => s.id === userId);
-                    if (studentInClass) {
-                        studentInClass.points = 0;
-                    }
-                    
-                    this.db.save(db);
-                    this.loadData();
-                    this.renderUsersTable();
-                    this.updateStats();
-                    
-                    this.showInfoModal('Прогресс пользователя сброшен', 'success');
-                }
-            }
-        );
-    }
-    
-    // ==================== ТАБЛИЦА ЗАДАНИЙ ====================
-    
-    initTasksTable() {
-        this.renderTasksTable();
-        
-        // Поиск заданий
-        const searchInput = document.getElementById('taskSearch');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.filterTasksTable(e.target.value);
-            });
-        }
-        
-        // Фильтр заданий
-        const filterSelect = document.getElementById('taskFilter');
-        if (filterSelect) {
-            filterSelect.addEventListener('change', (e) => {
-                this.filterTasksTable('', e.target.value);
-            });
-        }
-    }
-    
-    renderTasksTable() {
-        const tbody = document.getElementById('tasksTableBody');
-        if (!tbody) return;
-        
-        const db = this.currentData;
-        const tasks = db.classes?.['7B']?.tasks || [];
-        
-        if (tasks.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="empty-state">
-                        <i class="fas fa-tasks"></i>
-                        <h3>Нет заданий</h3>
-                        <p>Создайте первое задание</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        // Сортируем по дате сдачи
-        const sortedTasks = [...tasks].sort((a, b) => {
-            const dateA = new Date(a.dueDate || '9999-12-31');
-            const dateB = new Date(b.dueDate || '9999-12-31');
-            return dateA - dateB;
-        });
-        
-        tbody.innerHTML = '';
-        
-        sortedTasks.forEach(task => {
-            const row = document.createElement('tr');
-            
-            // Определяем цвет приоритета
-            let priorityBadge = '';
-            let priorityText = '';
-            
-            switch(task.priority) {
-                case 'high':
-                    priorityBadge = 'badge-danger';
-                    priorityText = 'Высокий';
-                    break;
-                case 'medium':
-                    priorityBadge = 'badge-warning';
-                    priorityText = 'Средний';
-                    break;
-                case 'low':
-                    priorityBadge = 'badge-success';
-                    priorityText = 'Низкий';
-                    break;
-                default:
-                    priorityBadge = 'badge-primary';
-                    priorityText = task.priority;
-            }
-            
-            // Форматируем дату
-            const dueDate = task.dueDate ? 
-                new Date(task.dueDate).toLocaleDateString('ru-RU') : 
-                'Не указано';
-            
-            row.innerHTML = `
-                <td>${task.id}</td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 8px; height: 8px; border-radius: 50%; 
-                                    background: ${this.getSubjectColor(task.subject)};"></div>
-                        <span>${this.getSubjectName(task.subject)}</span>
-                    </div>
-                </td>
-                <td>
-                    <div style="font-weight: 600;">${task.title || 'Без названия'}</div>
-                    ${task.description ? `
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">
-                        ${task.description.substring(0, 60)}${task.description.length > 60 ? '...' : ''}
-                    </div>` : ''}
-                </td>
-                <td>${dueDate}</td>
-                <td>
-                    <span class="badge ${priorityBadge}">${priorityText}</span>
-                </td>
-                <td>
-                    <div style="font-weight: 600; color: var(--admin-primary);">
-                        ${task.completed_by?.length || 0}
-                    </div>
-                </td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn-action btn-edit" data-task-id="${task.id}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-action btn-delete" data-task-id="${task.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            `;
-            
-            tbody.appendChild(row);
-        });
-        
-        // Добавляем обработчики событий для кнопок действий
-        this.initTaskActionButtons();
-    }
-    
-    getSubjectColor(subject) {
-        const colors = {
-            'math': '#8b5cf6',
-            'physics': '#3b82f6',
-            'history': '#10b981',
-            'english': '#f59e0b',
-            'informatics': '#ef4444'
-        };
-        return colors[subject] || '#6b7280';
-    }
-    
-    getSubjectName(subject) {
-        const names = {
-            'math': 'Математика',
-            'physics': 'Физика',
-            'history': 'История',
-            'english': 'Английский',
-            'informatics': 'Информатика'
-        };
-        return names[subject] || subject;
-    }
-    
-    filterTasksTable(searchTerm = '', filter = 'all') {
-        const tbody = document.getElementById('tasksTableBody');
-        const rows = tbody.querySelectorAll('tr');
-        
-        rows.forEach(row => {
-            const title = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
-            const completed = parseInt(row.querySelector('td:nth-child(6)')?.textContent || 0);
-            
-            let showRow = true;
-            
-            // Применяем поиск
-            if (searchTerm && !title.includes(searchTerm.toLowerCase())) {
-                showRow = false;
-            }
-            
-            // Применяем фильтр
-            if (filter !== 'all') {
-                if (filter === 'active' && completed > 0) {
-                    showRow = false;
-                } else if (filter === 'completed' && completed === 0) {
-                    showRow = false;
-                }
-            }
-            
-            row.style.display = showRow ? '' : 'none';
-        });
-    }
-    
-    initTaskActionButtons() {
-        // Кнопка редактирования задания
-        document.querySelectorAll('.btn-edit[data-task-id]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const taskId = parseInt(e.currentTarget.getAttribute('data-task-id'));
-                this.editTask(taskId);
-            });
-        });
-        
-        // Кнопка удаления задания
-        document.querySelectorAll('.btn-delete[data-task-id]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const taskId = parseInt(e.currentTarget.getAttribute('data-task-id'));
-                this.deleteTask(taskId);
-            });
-        });
-    }
-    
-    editTask(taskId) {
-        const db = this.currentData;
-        const task = db.classes?.['7B']?.tasks?.find(t => t.id === taskId);
-        
-        if (!task) return;
-        
-        // Заполняем форму редактирования
-        document.getElementById('editTaskId').value = task.id;
-        document.getElementById('editTaskSubject').value = task.subject;
-        document.getElementById('editTaskPriority').value = task.priority;
-        document.getElementById('editTaskDueDate').value = task.dueDate;
-        document.getElementById('editTaskDescription').value = task.description || '';
-        
-        // Показываем модальное окно
-        document.getElementById('taskModal').classList.add('active');
-    }
-    
-    deleteTask(taskId) {
-        this.showConfirmModal(
-            'Удаление задания',
-            'Вы уверены, что хотите удалить это задание? Все данные о выполнении будут потеряны.',
-            () => {
-                const db = this.currentData;
-                const tasks = db.classes?.['7B']?.tasks;
-                
-                if (tasks) {
-                    const taskIndex = tasks.findIndex(t => t.id === taskId);
-                    if (taskIndex !== -1) {
-                        tasks.splice(taskIndex, 1);
-                        this.db.save(db);
-                        this.loadData();
-                        this.renderTasksTable();
-                        this.updateStats();
-                        
-                        this.showInfoModal('Задание удалено', 'success');
-                    }
-                }
-            }
-        );
-    }
-    
-    // ==================== AI ОБУЧЕНИЕ ====================
-    
-    initKnowledgeTable() {
-        this.renderKnowledgeTable();
-        
-        // Поиск знаний
-        const searchInput = document.getElementById('knowledgeSearch');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.filterKnowledgeTable(e.target.value);
-            });
-        }
-        
-        // Фильтр знаний
-        const filterSelect = document.getElementById('knowledgeFilter');
-        if (filterSelect) {
-            filterSelect.addEventListener('change', (e) => {
-                this.filterKnowledgeTable('', e.target.value);
-            });
-        }
-    }
-    
-    renderKnowledgeTable() {
-        const tbody = document.getElementById('knowledgeTableBody');
-        if (!tbody) return;
-        
-        const db = this.currentData;
-        const knowledge = db.ai_knowledge || {};
-        
-        // Преобразуем объект в массив
-        const knowledgeArray = [];
-        Object.keys(knowledge).forEach(category => {
-            if (Array.isArray(knowledge[category])) {
-                knowledge[category].forEach((item, index) => {
-                    knowledgeArray.push({
-                        id: `${category}_${index}`,
-                        text: item,
-                        category: category,
-                        added: new Date().toISOString(), // В реальности должно быть из БД
-                        used: Math.floor(Math.random() * 50) // Тестовые данные
-                    });
-                });
-            }
-        });
-        
-        if (knowledgeArray.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="empty-state">
-                        <i class="fas fa-brain"></i>
-                        <h3>База знаний пуста</h3>
-                        <p>Добавьте первое знание для обучения AI</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        // Обновляем счетчик
-        document.getElementById('knowledgeCount').textContent = 
-            `${knowledgeArray.length} знаний`;
-        
-        tbody.innerHTML = '';
-        
-        knowledgeArray.forEach((item, index) => {
-            const row = document.createElement('tr');
-            
-            const categoryNames = {
-                'math': 'Математика',
-                'physics': 'Физика',
-                'history': 'История',
-                'general': 'Общие знания'
-            };
-            
-            row.innerHTML = `
-                <td>${index + 1}</td>
-                <td>
-                    <div style="max-width: 300px;">${item.text}</div>
-                </td>
-                <td>
-                    <span class="badge badge-primary">${categoryNames[item.category] || item.category}</span>
-                </td>
-                <td>
-                    ${new Date(item.added).toLocaleDateString('ru-RU')}
-                </td>
-                <td>
-                    <div style="font-weight: 600; color: var(--admin-primary);">
-                        ${item.used}
-                    </div>
-                </td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn-action btn-delete" data-knowledge-id="${item.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            `;
-            
-            tbody.appendChild(row);
-        });
-        
-        // Добавляем обработчики для кнопок удаления знаний
-        this.initKnowledgeActionButtons();
-    }
-    
-    filterKnowledgeTable(searchTerm = '', filter = 'all') {
-        const tbody = document.getElementById('knowledgeTableBody');
-        const rows = tbody.querySelectorAll('tr');
-        
-        rows.forEach(row => {
-            const text = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
-            const category = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
-            
-            let showRow = true;
-            
-            // Применяем поиск
-            if (searchTerm && !text.includes(searchTerm.toLowerCase())) {
-                showRow = false;
-            }
-            
-            // Применяем фильтр
-            if (filter !== 'all' && !category.includes(filter)) {
-                showRow = false;
-            }
-            
-            row.style.display = showRow ? '' : 'none';
-        });
-    }
-    
-    initKnowledgeActionButtons() {
-        document.querySelectorAll('.btn-delete[data-knowledge-id]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const knowledgeId = e.currentTarget.getAttribute('data-knowledge-id');
-                this.deleteKnowledge(knowledgeId);
-            });
-        });
-    }
-    
-    deleteKnowledge(knowledgeId) {
-        this.showConfirmModal(
-            'Удаление знания',
-            'Вы уверены, что хотите удалить это знание из базы AI?',
-            () => {
-                // В реальности здесь должна быть логика удаления из БД
-                this.showInfoModal('Знание удалено (демо-режим)', 'success');
-                setTimeout(() => {
-                    this.renderKnowledgeTable();
-                }, 500);
-            }
-        );
-    }
-    
-    // ==================== АНАЛИТИКА ====================
-    
-    updateAnalytics() {
-        this.updateAnalyticsTable();
-    }
-    
-    updateAnalyticsTable() {
-        const tbody = document.getElementById('analyticsTableBody');
-        if (!tbody) return;
-        
-        const db = this.currentData;
-        const users = db.users || [];
-        
-        if (users.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="empty-state">
-                        <i class="fas fa-chart-line"></i>
-                        <h3>Нет данных</h3>
-                        <p>Пользователи еще не активны</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        // Сортируем по активности (очкам)
-        const sortedUsers = [...users].sort((a, b) => b.points - a.points);
-        
-        tbody.innerHTML = '';
-        
-        sortedUsers.forEach(user => {
-            const row = document.createElement('tr');
-            
-            // Генерируем случайную активность (в реальности из БД)
-            const activityLevel = Math.min(Math.floor(user.points / 100), 100);
-            let activityBar = '';
-            let activityText = '';
-            
-            if (activityLevel > 70) {
-                activityBar = 'style="width: 100%; background: linear-gradient(90deg, #10b981, #34d399);"';
-                activityText = 'Очень высокая';
-            } else if (activityLevel > 40) {
-                activityBar = `style="width: ${activityLevel}%; background: linear-gradient(90deg, #f59e0b, #fbbf24);"`;
-                activityText = 'Средняя';
-            } else {
-                activityBar = `style="width: ${activityLevel}%; background: linear-gradient(90deg, #ef4444, #f87171);"`;
-                activityText = 'Низкая';
-            }
-            
-            row.innerHTML = `
-                <td>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="admin-avatar" style="width: 35px; height: 35px; font-size: 14px;">
-                            ${user.avatar}
-                        </div>
-                        <div>
-                            <div style="font-weight: 600;">${user.name}</div>
-                            <div style="font-size: 11px; color: var(--text-muted);">${user.class || '7Б'}</div>
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <div style="font-weight: 700; color: var(--admin-primary);">
-                        ${user.tasks_completed?.length || 0}
-                    </div>
-                </td>
-                <td>
-                    <div style="font-weight: 700; color: var(--admin-success);">
-                        ${user.points}
-                    </div>
-                </td>
-                <td>
-                    <div style="color: var(--text-muted);">
-                        ${Math.floor(user.points / 10)} мин
-                    </div>
-                </td>
-                <td>
-                    <div style="max-width: 150px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="progress-bar" style="flex: 1;">
-                                <div class="progress-fill" ${activityBar}></div>
-                            </div>
-                            <span style="font-size: 12px;">${activityText}</span>
-                        </div>
-                    </div>
-                </td>
-            `;
-            
-            tbody.appendChild(row);
-        });
-    }
-    
-    // ==================== МОДАЛЬНЫЕ ОКНА ====================
-    
-    showUserModal(mode = 'create', userId = null) {
-        const modal = document.getElementById('userModal');
-        const form = document.getElementById('userForm');
-        
-        if (mode === 'create') {
-            form.reset();
-            modal.querySelector('.modal-title').textContent = 'Создание пользователя';
-        } else {
-            modal.querySelector('.modal-title').textContent = 'Редактирование пользователя';
-        }
-        
-        modal.classList.add('active');
-        
-        // Обработка отправки формы
-        form.onsubmit = (e) => {
-            e.preventDefault();
-            
-            const name = document.getElementById('modalUserName').value;
-            const login = document.getElementById('modalUserLogin').value;
-            const password = document.getElementById('modalUserPassword').value;
-            const confirmPassword = document.getElementById('modalUserConfirmPassword').value;
-            const userClass = document.getElementById('modalUserClass').value;
-            const role = document.getElementById('modalUserRole').value;
-            
-            // Проверки
-            if (password !== confirmPassword) {
-                this.showInfoModal('Пароли не совпадают', 'error');
-                return;
-            }
-            
-            if (mode === 'create') {
-                // Создание нового пользователя
-                const result = this.db.addUser({
-                    login: login,
-                    password: password,
-                    name: name,
-                    role: role,
-                    class: userClass
-                });
-                
-                if (result.success) {
-                    this.loadData();
-                    this.renderUsersTable();
-                    this.updateStats();
-                    modal.classList.remove('active');
-                    this.showInfoModal('Пользователь создан успешно', 'success');
-                } else {
-                    this.showInfoModal(result.error, 'error');
-                }
-            } else {
-                // Редактирование существующего пользователя (упрощенно)
-                this.showInfoModal('Редактирование в демо-режиме', 'info');
-                modal.classList.remove('active');
-            }
-        };
-    }
-    
-    showConfirmModal(title, message, onConfirm) {
-        document.getElementById('confirmTitle').textContent = title;
-        document.getElementById('confirmMessage').textContent = message;
-        
-        const modal = document.getElementById('confirmModal');
-        modal.classList.add('active');
-        
-        const confirmYes = document.getElementById('confirmYes');
-        const confirmNo = document.getElementById('confirmNo');
-        
-        const closeModal = () => {
-            modal.classList.remove('active');
-            confirmYes.removeEventListener('click', handleConfirm);
-            confirmNo.removeEventListener('click', handleCancel);
         };
         
-        const handleConfirm = () => {
-            onConfirm();
-            closeModal();
-        };
-        
-        const handleCancel = closeModal;
-        
-        confirmYes.addEventListener('click', handleConfirm);
-        confirmNo.addEventListener('click', handleCancel);
-        
-        // Закрытие по клику вне окна
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
+        this.db.init();
     }
     
-    showInfoModal(message, type = 'info') {
-        const titles = {
-            'success': 'Успешно!',
-            'error': 'Ошибка!',
-            'warning': 'Внимание!',
-            'info': 'Информация'
-        };
-        
-        const colors = {
-            'success': 'var(--admin-success)',
-            'error': 'var(--admin-danger)',
-            'warning': 'var(--admin-warning)',
-            'info': 'var(--admin-info)'
-        };
-        
-        document.getElementById('infoTitle').textContent = titles[type] || 'Информация';
-        document.getElementById('infoTitle').style.background = 
-            `linear-gradient(90deg, ${colors[type] || colors.info}, #a5b4fc)`;
-        document.getElementById('infoMessage').textContent = message;
-        
-        const modal = document.getElementById('infoModal');
-        modal.classList.add('active');
-        
-        document.getElementById('closeInfoModalBtn').onclick = () => {
-            modal.classList.remove('active');
-        };
-    }
-    
-    // ==================== СОБЫТИЯ ====================
-    
-    initEvents() {
-        // Кнопка обновления
-        document.getElementById('refreshBtn').addEventListener('click', () => {
-            this.loadData();
-            this.updateStats();
-            this.showInfoModal('Данные обновлены', 'success');
-        });
-        
-        // Кнопка экспорта
-        document.getElementById('exportBtn').addEventListener('click', () => {
-            this.exportData();
-        });
-        
-        // Кнопка добавления пользователя
-        document.getElementById('addUserBtn')?.addEventListener('click', () => {
-            this.showUserModal('create');
-        });
-        
-        document.getElementById('newUserBtn')?.addEventListener('click', () => {
-            this.showUserModal('create');
-        });
-        
-        // Кнопка создания задания
-        document.getElementById('createTaskBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            this.createTask();
-        });
-        
-        // Кнопка добавления знания AI
-        document.getElementById('addKnowledgeBtn').addEventListener('click', () => {
-            this.addKnowledge();
-        });
-        
-        // Кнопка обучения AI
-        document.getElementById('startTrainingBtn').addEventListener('click', () => {
-            this.startAITraining();
-        });
-        
-        // Кнопка сброса AI
-        document.getElementById('resetAiBtn').addEventListener('click', () => {
-            this.resetAI();
-        });
-        
-        // Закрытие модальных окон
-        document.querySelectorAll('.modal-close').forEach(btn => {
-            btn.addEventListener('click', () => {
-                btn.closest('.modal').classList.remove('active');
-            });
-        });
-        
-        document.getElementById('cancelUserModal')?.addEventListener('click', () => {
-            document.getElementById('userModal').classList.remove('active');
-        });
-        
-        // Клик вне модального окна
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    modal.classList.remove('active');
-                }
-            });
-        });
-        
-        // Быстрые действия
-        document.getElementById('clearCacheBtn')?.addEventListener('click', () => {
-            this.clearCache();
-        });
-        
-        document.getElementById('backupBtn')?.addEventListener('click', () => {
-            this.createBackup();
-        });
-    }
-    
-    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
-    
-    createTask() {
-        const subject = document.getElementById('taskSubject').value;
-        const priority = document.getElementById('taskPriority').value;
-        const dueDate = document.getElementById('taskDueDate').value;
-        const description = document.getElementById('taskDescription').value;
-        
-        if (!description.trim()) {
-            this.showInfoModal('Введите описание задания', 'error');
-            return;
-        }
-        
-        const taskData = {
-            subject: subject,
-            priority: priority,
-            dueDate: dueDate,
-            title: `Задание по ${this.getSubjectName(subject)}`,
-            description: description
-        };
-        
-        const result = this.db.addTask(taskData);
-        
-        if (result) {
-            this.loadData();
-            this.renderTasksTable();
-            this.updateStats();
-            
-            // Очищаем форму
-            document.getElementById('taskDescription').value = '';
-            document.getElementById('taskDueDate').value = '';
-            
-            this.showInfoModal('Задание создано успешно', 'success');
-        } else {
-            this.showInfoModal('Ошибка создания задания', 'error');
-        }
-    }
-    
-    addKnowledge() {
-        const knowledgeInput = document.getElementById('newKnowledgeInput');
-        const category = document.getElementById('knowledgeCategory').value;
-        const text = knowledgeInput.value.trim();
-        
-        if (!text) {
-            this.showInfoModal('Введите текст знания', 'error');
-            return;
-        }
-        
-        const db = this.currentData;
-        
-        if (!db.ai_knowledge) {
-            db.ai_knowledge = {};
-        }
-        
-        if (!db.ai_knowledge[category]) {
-            db.ai_knowledge[category] = [];
-        }
-        
-        db.ai_knowledge[category].push(text);
-        this.db.save(db);
-        
-        // Обновляем интерфейс
-        this.loadData();
-        this.renderKnowledgeTable();
-        this.updateStats();
-        
-        // Очищаем поле ввода
-        knowledgeInput.value = '';
-        
-        this.showInfoModal('Знание добавлено в базу AI', 'success');
-    }
-    
-    startAITraining() {
-        const startBtn = document.getElementById('startTrainingBtn');
-        const stopBtn = document.getElementById('stopTrainingBtn');
-        const progressBar = document.getElementById('trainingProgress');
-        const statusText = document.getElementById('trainingStatus');
-        
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-        
-        let progress = 0;
-        const interval = setInterval(() => {
-            progress += Math.random() * 10;
-            if (progress > 100) progress = 100;
-            
-            progressBar.style.width = progress + '%';
-            statusText.textContent = `Обучение: ${Math.round(progress)}%`;
-            
-            if (progress >= 100) {
-                clearInterval(interval);
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                statusText.textContent = 'Обучение завершено!';
-                this.showInfoModal('AI успешно обучен', 'success');
-            }
-        }, 500);
-        
-        // Остановка обучения
-        stopBtn.onclick = () => {
-            clearInterval(interval);
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-            statusText.textContent = 'Обучение остановлено';
-        };
-    }
-    
-    resetAI() {
-        this.showConfirmModal(
-            'Сброс AI',
-            'Вы уверены, что хотите полностью сбросить AI? Все обученные данные будут удалены.',
-            () => {
-                const db = this.currentData;
-                db.ai_knowledge = {};
-                this.db.save(db);
-                
-                this.loadData();
-                this.renderKnowledgeTable();
-                this.updateStats();
-                
-                this.showInfoModal('AI сброшен к начальному состоянию', 'success');
-            }
-        );
-    }
-    
-    clearCache() {
-        // Очистка localStorage (кроме системных данных)
-        const keysToKeep = ['leo_assistant_db', 'is_admin'];
-        const keys = Object.keys(localStorage);
-        
-        keys.forEach(key => {
-            if (!keysToKeep.includes(key)) {
-                localStorage.removeItem(key);
-            }
-        });
-        
-        this.showInfoModal('Кэш очищен', 'success');
-    }
-    
-    createBackup() {
-        const db = this.db.getAll();
-        const backupData = {
-            ...db,
-            backup_date: new Date().toISOString()
-        };
-        
-        const dataStr = JSON.stringify(backupData, null, 2);
-        const dataBlob = new Blob([dataStr], {type: 'application/json'});
-        
-        // Создаем ссылку для скачивания
-        const downloadLink = document.createElement('a');
-        downloadLink.href = URL.createObjectURL(dataBlob);
-        downloadLink.download = `leo_backup_${new Date().toISOString().slice(0,10)}.json`;
-        
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        
-        this.showInfoModal('Резервная копия создана', 'success');
-    }
-    
-    exportData() {
-        const db = this.db.getAll();
-        const exportData = {
-            users: db.users || [],
-            tasks: db.classes?.['7B']?.tasks || [],
-            schedule: db.classes?.['7B']?.schedule || [],
-            statistics: {
-                total_users: db.users?.length || 0,
-                total_tasks: db.classes?.['7B']?.tasks?.length || 0,
-                total_logins: db.system?.total_logins || 0
-            }
-        };
-        
-        const dataStr = JSON.stringify(exportData, null, 2);
-        const dataBlob = new Blob([dataStr], {type: 'application/json'});
-        
-        // Создаем ссылку для скачивания
-        const downloadLink = document.createElement('a');
-        downloadLink.href = URL.createObjectURL(dataBlob);
-        downloadLink.download = `leo_export_${new Date().toISOString().slice(0,10)}.json`;
-        
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        
-        this.showInfoModal('Данные экспортированы', 'success');
-    }
+    // ==================== НАВИГАЦИЯ ====================
     
     initNavigation() {
-        const navItems = document.querySelectorAll('.admin-nav-item');
+        const navItems = document.querySelectorAll('.nav-item');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
         navItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
-                const tab = this.getAttribute('data-tab');
+                const tab = item.getAttribute('data-tab');
                 
-                // Убираем активный класс у всех
-                navItems.forEach(nav => nav.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(tab => {
-                    tab.classList.remove('active');
+                // Скрыть все вкладки
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
                 });
                 
-                // Добавляем активный класс
-                item.classList.add('active');
-                document.getElementById(`tab-${tab}`).classList.add('active');
+                // Убрать активность у всех пунктов меню
+                navItems.forEach(nav => {
+                    nav.classList.remove('active');
+                });
                 
-                // Обновляем заголовок
-                this.updatePageTitle(tab);
+                // Показать выбранную вкладку
+                const targetTab = document.getElementById(`tab-${tab}`);
+                if (targetTab) {
+                    targetTab.classList.add('active');
+                    item.classList.add('active');
+                    this.updatePageTitle(tab);
+                    
+                    // Загрузить данные для вкладки
+                    this.loadTabData(tab);
+                }
             });
         });
     }
@@ -1340,239 +130,1401 @@ class AdminPanel {
             notifications: 'Управление уведомлениями'
         };
         
-        document.getElementById('pageTitle').textContent = titles[tab] || 'Панель управления';
-        document.getElementById('pageDescription').textContent = descriptions[tab] || 'Полный контроль над системой Leo Assistant';
+        const titleElement = document.getElementById('pageTitle');
+        const descElement = document.getElementById('pageDescription');
+        
+        if (titleElement) {
+            titleElement.textContent = titles[tab] || 'Панель управления';
+        }
+        if (descElement) {
+            descElement.textContent = descriptions[tab] || 'Полный контроль над системой Leo Assistant';
+        }
+    }
+    
+    loadTabData(tab) {
+        switch(tab) {
+            case 'users':
+                this.renderUsersTable();
+                break;
+            case 'tasks':
+                this.renderTasksTable();
+                break;
+            case 'ai':
+                this.renderKnowledgeTable();
+                break;
+            case 'analytics':
+                this.renderAnalytics();
+                break;
+        }
+    }
+    
+    // ==================== СТАТИСТИКА ====================
+    
+    initStatistics() {
+        this.updateStatistics();
+        
+        // Обновление статистики каждые 30 секунд
+        setInterval(() => {
+            this.updateStatistics();
+        }, 30000);
+    }
+    
+    updateStatistics() {
+        const db = this.db.get();
+        if (!db) return;
+        
+        // Обновить счетчики в навигации
+        this.updateNavCounters(db);
+        
+        // Обновить основную статистику
+        this.updateMainStats(db);
+        
+        // Обновить системную информацию
+        this.updateSystemInfo(db);
+    }
+    
+    updateNavCounters(db) {
+        const updateCounter = (id, value) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        };
+        
+        updateCounter('usersCount', db.users.length);
+        updateCounter('tasksCount', db.tasks.length);
+        
+        const aiCount = Object.values(db.ai_knowledge).flat().length;
+        updateCounter('aiCount', aiCount);
+        updateCounter('notificationsCount', db.notifications.length);
+    }
+    
+    updateMainStats(db) {
+        // Пользователи
+        const usersElement = document.getElementById('statUsers');
+        if (usersElement) {
+            usersElement.textContent = db.users.length;
+        }
+        
+        // Задания
+        const tasksElement = document.getElementById('statTasks');
+        if (tasksElement) {
+            tasksElement.textContent = db.tasks.length;
+        }
+        
+        // Знания AI
+        const aiCount = Object.values(db.ai_knowledge).flat().length;
+        const aiElement = document.getElementById('statAI');
+        if (aiElement) {
+            aiElement.textContent = aiCount;
+        }
+        
+        // Проблемы (пользователи без очков)
+        const issues = db.users.filter(user => user.points === 0).length;
+        const issuesElement = document.getElementById('statIssues');
+        if (issuesElement) {
+            issuesElement.textContent = issues;
+        }
+        
+        // Процентные изменения (демо-данные)
+        this.updatePercentageChanges();
+    }
+    
+    updatePercentageChanges() {
+        const changes = {
+            usersChange: `+${Math.floor(Math.random() * 10)}%`,
+            tasksChange: `+${Math.floor(Math.random() * 15)}%`,
+            aiChange: `+${Math.floor(Math.random() * 20)}%`,
+            issuesChange: `-${Math.floor(Math.random() * 5)}%`
+        };
+        
+        Object.entries(changes).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        });
+    }
+    
+    updateSystemInfo(db) {
+        const updateInfo = (id, value) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        };
+        
+        // Версия системы
+        updateInfo('systemVersion', db.system.version);
+        
+        // Всего логинов
+        updateInfo('totalLogins', db.system.total_logins);
+        
+        // Объем данных
+        const dataSize = JSON.stringify(db).length;
+        updateInfo('dataSize', `${Math.round(dataSize / 1024)} KB`);
+        
+        // Дата запуска
+        if (db.system.start_date) {
+            const startDate = new Date(db.system.start_date);
+            updateInfo('systemStartDate', startDate.toLocaleDateString('ru-RU'));
+        }
+        
+        // Дата последнего бэкапа
+        if (db.system.last_backup) {
+            const backupDate = new Date(db.system.last_backup);
+            const backupElement = document.getElementById('lastBackupDate');
+            if (backupElement) {
+                backupElement.textContent = backupDate.toLocaleDateString('ru-RU');
+            }
+        }
+    }
+    
+    // ==================== ПОЛЬЗОВАТЕЛИ ====================
+    
+    initUsers() {
+        this.renderUsersTable();
+        this.initUserSearch();
+        this.initUserFilter();
+    }
+    
+    renderUsersTable() {
+        const tbody = document.getElementById('usersTableBody');
+        if (!tbody) return;
+        
+        const db = this.db.get();
+        if (!db || !db.users || db.users.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <h3>Нет пользователей</h3>
+                        <p>Создайте первого пользователя</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Сортировка по очкам (по убыванию)
+        const sortedUsers = [...db.users].sort((a, b) => b.points - a.points);
+        
+        let html = '';
+        sortedUsers.forEach((user, index) => {
+            // Статус пользователя
+            let statusClass = '';
+            let statusText = '';
+            
+            if (user.role === 'admin') {
+                statusClass = 'badge-danger';
+                statusText = 'Админ';
+            } else if (user.points >= 1000) {
+                statusClass = 'badge-success';
+                statusText = 'Активен';
+            } else if (user.points === 0) {
+                statusClass = 'badge-warning';
+                statusText = 'Новичок';
+            } else {
+                statusClass = 'badge-primary';
+                statusText = 'Ученик';
+            }
+            
+            // Аватар (первые буквы имени)
+            const avatar = user.name.split(' ').map(word => word[0]).join('').toUpperCase();
+            
+            html += `
+                <tr>
+                    <td>${user.id || index + 1}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #8b5cf6, #3b82f6); 
+                                    border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+                                    color: white; font-weight: bold; font-size: 14px;">
+                                ${avatar}
+                            </div>
+                            <div>
+                                <div style="font-weight: 600;">${user.name}</div>
+                                <div style="font-size: 12px; color: #94a3b8;">@${user.login}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${user.class || '7Б'}</td>
+                    <td>
+                        <div style="font-weight: 700; color: #8b5cf6;">${user.points || 0}</div>
+                    </td>
+                    <td>${user.tasks_completed || 0}</td>
+                    <td>
+                        <span class="badge ${statusClass}">${statusText}</span>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn-edit-user" data-user-id="${user.id || index}" 
+                                    style="padding: 5px 10px; background: rgba(59, 130, 246, 0.2); 
+                                    color: #3b82f6; border: none; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-delete-user" data-user-id="${user.id || index}"
+                                    style="padding: 5px 10px; background: rgba(239, 68, 68, 0.2); 
+                                    color: #ef4444; border: none; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        
+        // Добавить обработчики для кнопок действий
+        this.initUserActions();
+    }
+    
+    initUserSearch() {
+        const searchInput = document.getElementById('userSearch');
+        if (!searchInput) return;
+        
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#usersTableBody tr');
+            
+            rows.forEach(row => {
+                const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                const login = row.querySelector('td:nth-child(2) div:nth-child(2)').textContent.toLowerCase();
+                
+                if (name.includes(searchTerm) || login.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    initUserFilter() {
+        const filterSelect = document.getElementById('userFilter');
+        if (!filterSelect) return;
+        
+        filterSelect.addEventListener('change', (e) => {
+            const filter = e.target.value;
+            const rows = document.querySelectorAll('#usersTableBody tr');
+            
+            rows.forEach(row => {
+                const status = row.querySelector('td:nth-child(6) span').textContent.toLowerCase();
+                
+                if (filter === 'all' || 
+                    (filter === 'students' && (status === 'ученик' || status === 'новичок')) ||
+                    (filter === 'teachers' && (status === 'админ' || status === 'учитель'))) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    initUserActions() {
+        // Редактирование пользователя
+        document.querySelectorAll('.btn-edit-user').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const userId = e.target.closest('button').getAttribute('data-user-id');
+                this.editUser(userId);
+            });
+        });
+        
+        // Удаление пользователя
+        document.querySelectorAll('.btn-delete-user').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const userId = e.target.closest('button').getAttribute('data-user-id');
+                this.deleteUser(userId);
+            });
+        });
+    }
+    
+    addUser(userData) {
+        const db = this.db.get();
+        if (!db) return false;
+        
+        // Проверить, нет ли уже такого логина
+        const userExists = db.users.some(user => user.login === userData.login);
+        if (userExists) {
+            this.showNotification('Пользователь с таким логином уже существует', 'error');
+            return false;
+        }
+        
+        // Создать нового пользователя
+        const newUser = {
+            id: Date.now(),
+            name: userData.name,
+            login: userData.login,
+            password: userData.password,
+            class: userData.class || '7Б',
+            role: userData.role || 'student',
+            points: 0,
+            level: 1,
+            tasks_completed: 0,
+            created_at: new Date().toISOString()
+        };
+        
+        db.users.push(newUser);
+        db.system.total_logins++;
+        this.db.save(db);
+        
+        // Обновить интерфейс
+        this.updateStatistics();
+        this.renderUsersTable();
+        
+        this.showNotification('Пользователь успешно создан', 'success');
+        return true;
+    }
+    
+    editUser(userId) {
+        this.showNotification('Редактирование пользователя (в разработке)', 'info');
+    }
+    
+    deleteUser(userId) {
+        if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) {
+            return;
+        }
+        
+        const db = this.db.get();
+        if (!db) return;
+        
+        const userIndex = db.users.findIndex(user => user.id == userId);
+        if (userIndex !== -1) {
+            db.users.splice(userIndex, 1);
+            this.db.save(db);
+            
+            this.updateStatistics();
+            this.renderUsersTable();
+            this.showNotification('Пользователь удален', 'success');
+        }
+    }
+    
+    // ==================== ЗАДАНИЯ ====================
+    
+    initTasks() {
+        this.renderTasksTable();
+        this.initTaskSearch();
+        this.initTaskFilter();
+    }
+    
+    renderTasksTable() {
+        const tbody = document.getElementById('tasksTableBody');
+        if (!tbody) return;
+        
+        const db = this.db.get();
+        if (!db || !db.tasks || db.tasks.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty-state">
+                        <i class="fas fa-tasks"></i>
+                        <h3>Нет заданий</h3>
+                        <p>Создайте первое задание</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Сортировка по дате сдачи
+        const sortedTasks = [...db.tasks].sort((a, b) => {
+            const dateA = new Date(a.dueDate || '9999-12-31');
+            const dateB = new Date(b.dueDate || '9999-12-31');
+            return dateA - dateB;
+        });
+        
+        let html = '';
+        sortedTasks.forEach((task, index) => {
+            // Цвет приоритета
+            let priorityClass = '';
+            let priorityText = '';
+            
+            switch(task.priority) {
+                case 'high':
+                    priorityClass = 'badge-danger';
+                    priorityText = 'Высокий';
+                    break;
+                case 'medium':
+                    priorityClass = 'badge-warning';
+                    priorityText = 'Средний';
+                    break;
+                case 'low':
+                    priorityClass = 'badge-success';
+                    priorityText = 'Низкий';
+                    break;
+                default:
+                    priorityClass = 'badge-primary';
+                    priorityText = task.priority;
+            }
+            
+            // Название предмета
+            const subjectNames = {
+                math: 'Математика',
+                physics: 'Физика',
+                history: 'История',
+                english: 'Английский',
+                informatics: 'Информатика'
+            };
+            
+            // Форматирование даты
+            const dueDate = task.dueDate ? 
+                new Date(task.dueDate).toLocaleDateString('ru-RU') : 
+                'Не указано';
+            
+            html += `
+                <tr>
+                    <td>${task.id || index + 1}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 8px; height: 8px; border-radius: 50%; 
+                                    background: ${this.getSubjectColor(task.subject)};"></div>
+                            <span>${subjectNames[task.subject] || task.subject}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600;">${task.title || 'Без названия'}</div>
+                        ${task.description ? `
+                        <div style="font-size: 12px; color: #94a3b8; margin-top: 5px;">
+                            ${task.description.substring(0, 60)}${task.description.length > 60 ? '...' : ''}
+                        </div>` : ''}
+                    </td>
+                    <td>${dueDate}</td>
+                    <td>
+                        <span class="badge ${priorityClass}">${priorityText}</span>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: #8b5cf6;">
+                            ${task.completed_by ? task.completed_by.length : 0}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn-edit-task" data-task-id="${task.id || index}"
+                                    style="padding: 5px 10px; background: rgba(59, 130, 246, 0.2); 
+                                    color: #3b82f6; border: none; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-delete-task" data-task-id="${task.id || index}"
+                                    style="padding: 5px 10px; background: rgba(239, 68, 68, 0.2); 
+                                    color: #ef4444; border: none; border-radius: 6px; cursor: pointer;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        
+        // Добавить обработчики для кнопок действий
+        this.initTaskActions();
+    }
+    
+    getSubjectColor(subject) {
+        const colors = {
+            math: '#8b5cf6',
+            physics: '#3b82f6',
+            history: '#10b981',
+            english: '#f59e0b',
+            informatics: '#ef4444'
+        };
+        return colors[subject] || '#6b7280';
+    }
+    
+    initTaskSearch() {
+        const searchInput = document.getElementById('taskSearch');
+        if (!searchInput) return;
+        
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#tasksTableBody tr');
+            
+            rows.forEach(row => {
+                const title = row.querySelector('td:nth-child(3) div:nth-child(1)').textContent.toLowerCase();
+                const subject = row.querySelector('td:nth-child(2) span').textContent.toLowerCase();
+                
+                if (title.includes(searchTerm) || subject.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    initTaskFilter() {
+        const filterSelect = document.getElementById('taskFilter');
+        if (!filterSelect) return;
+        
+        filterSelect.addEventListener('change', (e) => {
+            const filter = e.target.value;
+            const rows = document.querySelectorAll('#tasksTableBody tr');
+            
+            rows.forEach(row => {
+                const completed = parseInt(row.querySelector('td:nth-child(6) div').textContent);
+                
+                if (filter === 'all' || 
+                    (filter === 'active' && completed === 0) ||
+                    (filter === 'completed' && completed > 0)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    initTaskActions() {
+        // Редактирование задания
+        document.querySelectorAll('.btn-edit-task').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const taskId = e.target.closest('button').getAttribute('data-task-id');
+                this.editTask(taskId);
+            });
+        });
+        
+        // Удаление задания
+        document.querySelectorAll('.btn-delete-task').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const taskId = e.target.closest('button').getAttribute('data-task-id');
+                this.deleteTask(taskId);
+            });
+        });
+    }
+    
+    createTask(taskData) {
+        const db = this.db.get();
+        if (!db) return false;
+        
+        const newTask = {
+            id: Date.now(),
+            subject: taskData.subject,
+            priority: taskData.priority,
+            dueDate: taskData.dueDate,
+            title: `Задание по ${this.getSubjectName(taskData.subject)}`,
+            description: taskData.description,
+            completed_by: [],
+            created_at: new Date().toISOString()
+        };
+        
+        if (!db.tasks) db.tasks = [];
+        db.tasks.push(newTask);
+        this.db.save(db);
+        
+        // Обновить интерфейс
+        this.updateStatistics();
+        this.renderTasksTable();
+        
+        this.showNotification('Задание успешно создано', 'success');
+        return true;
+    }
+    
+    getSubjectName(subject) {
+        const names = {
+            math: 'Математике',
+            physics: 'Физике',
+            history: 'Истории',
+            english: 'Английскому',
+            informatics: 'Информатике'
+        };
+        return names[subject] || subject;
+    }
+    
+    editTask(taskId) {
+        this.showNotification('Редактирование задания (в разработке)', 'info');
+    }
+    
+    deleteTask(taskId) {
+        if (!confirm('Вы уверены, что хотите удалить это задание?')) {
+            return;
+        }
+        
+        const db = this.db.get();
+        if (!db || !db.tasks) return;
+        
+        const taskIndex = db.tasks.findIndex(task => task.id == taskId);
+        if (taskIndex !== -1) {
+            db.tasks.splice(taskIndex, 1);
+            this.db.save(db);
+            
+            this.updateStatistics();
+            this.renderTasksTable();
+            this.showNotification('Задание удалено', 'success');
+        }
+    }
+    
+    // ==================== AI ОБУЧЕНИЕ ====================
+    
+    initAI() {
+        this.renderKnowledgeTable();
+        this.initKnowledgeSearch();
+        this.initKnowledgeFilter();
+    }
+    
+    renderKnowledgeTable() {
+        const tbody = document.getElementById('knowledgeTableBody');
+        if (!tbody) return;
+        
+        const db = this.db.get();
+        if (!db || !db.ai_knowledge) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-brain"></i>
+                        <h3>База знаний пуста</h3>
+                        <p>Добавьте первое знание для обучения AI</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Преобразовать объект знаний в массив
+        const knowledgeArray = [];
+        Object.entries(db.ai_knowledge).forEach(([category, items]) => {
+            items.forEach((text, index) => {
+                knowledgeArray.push({
+                    id: `${category}_${index}`,
+                    text: text,
+                    category: category,
+                    added: new Date().toISOString(),
+                    used: Math.floor(Math.random() * 50)
+                });
+            });
+        });
+        
+        if (knowledgeArray.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-brain"></i>
+                        <h3>База знаний пуста</h3>
+                        <p>Добавьте первое знание для обучения AI</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Обновить счетчик знаний
+        const knowledgeCount = document.getElementById('knowledgeCount');
+        if (knowledgeCount) {
+            knowledgeCount.textContent = `${knowledgeArray.length} знаний`;
+        }
+        
+        let html = '';
+        knowledgeArray.forEach((item, index) => {
+            // Название категории
+            const categoryNames = {
+                math: 'Математика',
+                physics: 'Физика',
+                history: 'История',
+                general: 'Общие знания'
+            };
+            
+            html += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>
+                        <div style="max-width: 300px;">${item.text}</div>
+                    </td>
+                    <td>
+                        <span class="badge badge-primary">${categoryNames[item.category] || item.category}</span>
+                    </td>
+                    <td>
+                        ${new Date(item.added).toLocaleDateString('ru-RU')}
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: #8b5cf6;">${item.used}</div>
+                    </td>
+                    <td>
+                        <button class="btn-delete-knowledge" data-knowledge-id="${item.id}"
+                                style="padding: 5px 10px; background: rgba(239, 68, 68, 0.2); 
+                                color: #ef4444; border: none; border-radius: 6px; cursor: pointer;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        
+        // Добавить обработчики для кнопок удаления
+        this.initKnowledgeActions();
+    }
+    
+    initKnowledgeSearch() {
+        const searchInput = document.getElementById('knowledgeSearch');
+        if (!searchInput) return;
+        
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#knowledgeTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.querySelector('td:nth-child(2) div').textContent.toLowerCase();
+                
+                if (text.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    initKnowledgeFilter() {
+        const filterSelect = document.getElementById('knowledgeFilter');
+        if (!filterSelect) return;
+        
+        filterSelect.addEventListener('change', (e) => {
+            const filter = e.target.value;
+            const rows = document.querySelectorAll('#knowledgeTableBody tr');
+            
+            rows.forEach(row => {
+                const category = row.querySelector('td:nth-child(3) span').textContent.toLowerCase();
+                
+                if (filter === 'all' || category.includes(filter)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    initKnowledgeActions() {
+        document.querySelectorAll('.btn-delete-knowledge').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const knowledgeId = e.target.closest('button').getAttribute('data-knowledge-id');
+                this.deleteKnowledge(knowledgeId);
+            });
+        });
+    }
+    
+    addKnowledge(category, text) {
+        const db = this.db.get();
+        if (!db) return false;
+        
+        if (!db.ai_knowledge[category]) {
+            db.ai_knowledge[category] = [];
+        }
+        
+        db.ai_knowledge[category].push(text);
+        this.db.save(db);
+        
+        // Обновить интерфейс
+        this.updateStatistics();
+        this.renderKnowledgeTable();
+        
+        this.showNotification('Знание добавлено в базу AI', 'success');
+        return true;
+    }
+    
+    deleteKnowledge(knowledgeId) {
+        if (!confirm('Вы уверены, что хотите удалить это знание?')) {
+            return;
+        }
+        
+        const db = this.db.get();
+        if (!db || !db.ai_knowledge) return;
+        
+        // knowledgeId в формате "category_index"
+        const [category, index] = knowledgeId.split('_');
+        
+        if (db.ai_knowledge[category] && db.ai_knowledge[category][parseInt(index)]) {
+            db.ai_knowledge[category].splice(parseInt(index), 1);
+            this.db.save(db);
+            
+            this.updateStatistics();
+            this.renderKnowledgeTable();
+            this.showNotification('Знание удалено', 'success');
+        }
+    }
+    
+    startAITraining() {
+        const startBtn = document.getElementById('startTrainingBtn');
+        const stopBtn = document.getElementById('stopTrainingBtn');
+        const progressBar = document.getElementById('trainingProgress');
+        const statusText = document.getElementById('trainingStatus');
+        
+        if (!startBtn || !stopBtn || !progressBar || !statusText) return;
+        
+        // Отключить кнопку старта, включить кнопку остановки
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 10;
+            if (progress > 100) progress = 100;
+            
+            progressBar.style.width = progress + '%';
+            statusText.textContent = `Обучение: ${Math.round(progress)}%`;
+            
+            if (progress >= 100) {
+                clearInterval(interval);
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                statusText.textContent = 'Обучение завершено!';
+                this.showNotification('AI успешно обучен', 'success');
+            }
+        }, 500);
+        
+        // Обработчик для кнопки остановки
+        const stopHandler = () => {
+            clearInterval(interval);
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusText.textContent = 'Обучение остановлено';
+            this.showNotification('Обучение остановлено', 'warning');
+            
+            // Удалить обработчик после использования
+            stopBtn.removeEventListener('click', stopHandler);
+        };
+        
+        stopBtn.addEventListener('click', stopHandler);
+    }
+    
+    resetAI() {
+        if (!confirm('Вы уверены, что хотите сбросить AI? Все обученные данные будут удалены.')) {
+            return;
+        }
+        
+        const db = this.db.get();
+        if (!db) return;
+        
+        db.ai_knowledge = {
+            math: ['Математика изучает числа и их свойства'],
+            physics: ['Физика - наука о природе'],
+            history: ['История изучает прошлое человечества'],
+            general: ['AI готов помогать с учебой']
+        };
+        
+        this.db.save(db);
+        
+        this.updateStatistics();
+        this.renderKnowledgeTable();
+        this.showNotification('AI сброшен к начальному состоянию', 'success');
+    }
+    
+    // ==================== АНАЛИТИКА ====================
+    
+    renderAnalytics() {
+        // В будущем здесь можно добавить графики и диаграммы
+        console.log('Загрузка аналитики...');
+    }
+    
+    // ==================== ОБЩИЕ СИСТЕМНЫЕ ФУНКЦИИ ====================
+    
+    clearCache() {
+        // Сохраняем только системные данные
+        const db = this.db.get();
+        if (!db) return;
+        
+        const systemData = {
+            system: db.system,
+            ai_knowledge: db.ai_knowledge
+        };
+        
+        this.db.save(systemData);
+        
+        this.updateStatistics();
+        this.renderUsersTable();
+        this.renderTasksTable();
+        this.showNotification('Кэш очищен', 'success');
+    }
+    
+    createBackup() {
+        const db = this.db.get();
+        if (!db) return;
+        
+        const backupData = {
+            ...db,
+            backup_date: new Date().toISOString()
+        };
+        
+        // Обновить дату последнего бэкапа
+        db.system.last_backup = new Date().toISOString();
+        this.db.save(db);
+        
+        // Создать файл для скачивания
+        const dataStr = JSON.stringify(backupData, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        
+        const downloadLink = document.createElement('a');
+        downloadLink.href = URL.createObjectURL(dataBlob);
+        downloadLink.download = `leo_backup_${new Date().toISOString().slice(0,10)}.json`;
+        
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        this.showNotification('Резервная копия создана', 'success');
+        this.updateStatistics();
+    }
+    
+    exportData() {
+        const db = this.db.get();
+        if (!db) return;
+        
+        const exportData = {
+            users: db.users || [],
+            tasks: db.tasks || [],
+            ai_knowledge: db.ai_knowledge || {},
+            statistics: {
+                total_users: db.users.length,
+                total_tasks: db.tasks.length,
+                total_logins: db.system.total_logins,
+                ai_knowledge_count: Object.values(db.ai_knowledge).flat().length
+            }
+        };
+        
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        
+        const downloadLink = document.createElement('a');
+        downloadLink.href = URL.createObjectURL(dataBlob);
+        downloadLink.download = `leo_export_${new Date().toISOString().slice(0,10)}.json`;
+        
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        this.showNotification('Данные экспортированы', 'success');
+    }
+    
+    // ==================== СОБЫТИЯ ====================
+    
+    initEvents() {
+        // Кнопка выхода
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                if (confirm('Вы уверены, что хотите выйти?')) {
+                    localStorage.removeItem('is_admin');
+                    window.location.href = 'index.html';
+                }
+            });
+        }
+        
+        // Кнопка обновления
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.updateAllData();
+                this.showNotification('Данные обновлены', 'success');
+            });
+        }
+        
+        // Кнопка экспорта
+        const exportBtn = document.getElementById('exportBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                this.exportData();
+            });
+        }
+        
+        // Быстрые действия
+        this.initQuickActions();
+        
+        // Форма создания пользователя
+        this.initUserForm();
+        
+        // Форма создания задания
+        this.initTaskForm();
+        
+        // Форма добавления знаний AI
+        this.initKnowledgeForm();
+        
+        // AI обучение
+        this.initAITraining();
+    }
+    
+    initQuickActions() {
+        // Добавить пользователя
+        const addUserBtn = document.getElementById('addUserBtn');
+        if (addUserBtn) {
+            addUserBtn.addEventListener('click', () => {
+                this.showUserModal();
+            });
+        }
+        
+        const newUserBtn = document.getElementById('newUserBtn');
+        if (newUserBtn) {
+            newUserBtn.addEventListener('click', () => {
+                this.showUserModal();
+            });
+        }
+        
+        // Создать задание
+        const addTaskBtn = document.getElementById('addTaskBtn');
+        if (addTaskBtn) {
+            addTaskBtn.addEventListener('click', () => {
+                // Перейти на вкладку заданий
+                document.querySelector('[data-tab="tasks"]').click();
+            });
+        }
+        
+        // Создать резервную копию
+        const backupBtn = document.getElementById('backupBtn');
+        if (backupBtn) {
+            backupBtn.addEventListener('click', () => {
+                this.createBackup();
+            });
+        }
+        
+        // Очистить кэш
+        const clearCacheBtn = document.getElementById('clearCacheBtn');
+        if (clearCacheBtn) {
+            clearCacheBtn.addEventListener('click', () => {
+                this.clearCache();
+            });
+        }
+    }
+    
+    showUserModal() {
+        const modal = document.getElementById('userModal');
+        if (modal) {
+            modal.classList.add('active');
+        }
+    }
+    
+    initUserForm() {
+        const userForm = document.getElementById('userForm');
+        if (!userForm) return;
+        
+        userForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('modalUserName').value.trim();
+            const login = document.getElementById('modalUserLogin').value.trim();
+            const password = document.getElementById('modalUserPassword').value;
+            const confirmPassword = document.getElementById('modalUserConfirmPassword').value;
+            const userClass = document.getElementById('modalUserClass').value;
+            const role = document.getElementById('modalUserRole').value;
+            
+            // Валидация
+            if (!name || !login || !password || !confirmPassword) {
+                this.showNotification('Заполните все поля', 'error');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                this.showNotification('Пароли не совпадают', 'error');
+                return;
+            }
+            
+            if (password.length < 4) {
+                this.showNotification('Пароль должен быть не менее 4 символов', 'error');
+                return;
+            }
+            
+            // Создать пользователя
+            const success = this.addUser({
+                name: name,
+                login: login,
+                password: password,
+                class: userClass,
+                role: role
+            });
+            
+            if (success) {
+                // Закрыть модальное окно
+                const modal = document.getElementById('userModal');
+                if (modal) {
+                    modal.classList.remove('active');
+                }
+                
+                // Очистить форму
+                userForm.reset();
+            }
+        });
+        
+        // Закрытие модального окна
+        const closeButtons = document.querySelectorAll('.modal-close, #cancelUserModal');
+        closeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const modal = document.getElementById('userModal');
+                if (modal) {
+                    modal.classList.remove('active');
+                    userForm.reset();
+                }
+            });
+        });
+        
+        // Клик вне модального окна
+        const modal = document.getElementById('userModal');
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                    userForm.reset();
+                }
+            });
+        }
+    }
+    
+    initTaskForm() {
+        const createTaskBtn = document.getElementById('createTaskBtn');
+        if (!createTaskBtn) return;
+        
+        createTaskBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            const subject = document.getElementById('taskSubject').value;
+            const priority = document.getElementById('taskPriority').value;
+            const dueDate = document.getElementById('taskDueDate').value;
+            const description = document.getElementById('taskDescription').value.trim();
+            
+            if (!description) {
+                this.showNotification('Введите описание задания', 'error');
+                return;
+            }
+            
+            const success = this.createTask({
+                subject: subject,
+                priority: priority,
+                dueDate: dueDate,
+                description: description
+            });
+            
+            if (success) {
+                // Очистить форму
+                document.getElementById('taskDescription').value = '';
+                document.getElementById('taskDueDate').value = '';
+                
+                // Показать уведомление
+                this.showNotification('Задание создано успешно', 'success');
+            }
+        });
+        
+        // Очистка формы
+        const clearTaskFormBtn = document.getElementById('clearTaskFormBtn');
+        if (clearTaskFormBtn) {
+            clearTaskFormBtn.addEventListener('click', () => {
+                document.getElementById('taskDescription').value = '';
+                document.getElementById('taskDueDate').value = '';
+            });
+        }
+    }
+    
+    initKnowledgeForm() {
+        const addKnowledgeBtn = document.getElementById('addKnowledgeBtn');
+        if (!addKnowledgeBtn) return;
+        
+        addKnowledgeBtn.addEventListener('click', () => {
+            const text = document.getElementById('newKnowledgeInput').value.trim();
+            const category = document.getElementById('knowledgeCategory').value;
+            
+            if (!text) {
+                this.showNotification('Введите текст знания', 'error');
+                return;
+            }
+            
+            const success = this.addKnowledge(category, text);
+            
+            if (success) {
+                // Очистить поле ввода
+                document.getElementById('newKnowledgeInput').value = '';
+            }
+        });
+    }
+    
+    initAITraining() {
+        const startTrainingBtn = document.getElementById('startTrainingBtn');
+        if (startTrainingBtn) {
+            startTrainingBtn.addEventListener('click', () => {
+                this.startAITraining();
+            });
+        }
+        
+        const resetAiBtn = document.getElementById('resetAiBtn');
+        if (resetAiBtn) {
+            resetAiBtn.addEventListener('click', () => {
+                this.resetAI();
+            });
+        }
+    }
+    
+    // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+    
+    updateAllData() {
+        this.updateStatistics();
+        this.renderUsersTable();
+        this.renderTasksTable();
+        this.renderKnowledgeTable();
+    }
+    
+    showNotification(message, type = 'info') {
+        // Удалить старые уведомления
+        const oldNotification = document.querySelector('.admin-notification');
+        if (oldNotification) {
+            oldNotification.remove();
+        }
+        
+        // Создать новое уведомление
+        const notification = document.createElement('div');
+        notification.className = 'admin-notification';
+        
+        // Иконка в зависимости от типа
+        let icon = 'info-circle';
+        let backgroundColor = '#3b82f6';
+        
+        switch(type) {
+            case 'success':
+                icon = 'check-circle';
+                backgroundColor = '#10b981';
+                break;
+            case 'error':
+                icon = 'exclamation-circle';
+                backgroundColor = '#ef4444';
+                break;
+            case 'warning':
+                icon = 'exclamation-triangle';
+                backgroundColor = '#f59e0b';
+                break;
+        }
+        
+        notification.innerHTML = `
+            <i class="fas fa-${icon}"></i>
+            <span>${message}</span>
+        `;
+        
+        // Стили уведомления
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${backgroundColor};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Удалить через 3 секунды
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 300);
+        }, 3000);
+    }
+    
+    animateStatistics() {
+        const statValues = document.querySelectorAll('.stat-value');
+        statValues.forEach(element => {
+            const finalValue = parseInt(element.textContent);
+            if (isNaN(finalValue)) return;
+            
+            let current = 0;
+            const increment = Math.ceil(finalValue / 50);
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= finalValue) {
+                    current = finalValue;
+                    clearInterval(timer);
+                }
+                element.textContent = current;
+            }, 30);
+        });
     }
 }
 
-// Инициализация админ-панели при загрузке страницы
-document.addEventListener('DOMContentLoaded', function() {
-    // Проверка авторизации
-    if (!localStorage.getItem('is_admin')) {
-        window.location.href = 'index.html';
-        return;
-    }
-    
-    // Инициализация
-    const adminPanel = new AdminPanel();
-    
-    // Добавляем стили для улучшения дизайна
+// Инициализация админ-панели
+document.addEventListener('DOMContentLoaded', () => {
+    // Добавить стили для анимаций
     const style = document.createElement('style');
     style.textContent = `
-        /* Улучшения дизайна */
-        .admin-nav-item {
-            position: relative;
-            overflow: hidden;
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
         
-        .admin-nav-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            transition: left 0.5s;
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
         }
         
-        .admin-nav-item:hover::before {
-            left: 100%;
+        .btn {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .action-btn {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .action-btn:hover {
+            background: rgba(139, 92, 246, 0.1) !important;
+            border-color: #8b5cf6 !important;
+            transform: translateY(-5px) !important;
         }
         
         .stat-card {
-            position: relative;
-            overflow: hidden;
+            transition: all 0.3s ease;
         }
         
-        .stat-card::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        
-        .stat-card:hover::after {
-            opacity: 1;
-        }
-        
-        /* Анимация появления строк таблицы */
-        @keyframes slideInRow {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: #8b5cf6 !important;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3) !important;
         }
         
         table tbody tr {
-            animation: slideInRow 0.3s ease-out;
-            animation-fill-mode: both;
+            transition: all 0.2s ease;
         }
         
-        table tbody tr:nth-child(1) { animation-delay: 0.1s; }
-        table tbody tr:nth-child(2) { animation-delay: 0.2s; }
-        table tbody tr:nth-child(3) { animation-delay: 0.3s; }
-        table tbody tr:nth-child(4) { animation-delay: 0.4s; }
-        table tbody tr:nth-child(5) { animation-delay: 0.5s; }
-        
-        /* Эффект свечения для важных элементов */
-        .pulse-glow {
-            animation: pulse-glow 2s infinite;
-        }
-        
-        @keyframes pulse-glow {
-            0%, 100% { 
-                box-shadow: 0 0 20px rgba(139, 92, 246, 0.5); 
-            }
-            50% { 
-                box-shadow: 0 0 40px rgba(139, 92, 246, 0.8); 
-            }
-        }
-        
-        /* Анимация загрузки для графиков */
-        .chart-loading {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .chart-loading::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
-            animation: loading-shimmer 1.5s infinite;
-        }
-        
-        @keyframes loading-shimmer {
-            0% { left: -100%; }
-            100% { left: 100%; }
-        }
-        
-        /* Улучшенные тени для карточек */
-        .card, .admin-table, .admin-form, .system-status {
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            transition: box-shadow 0.3s, transform 0.3s;
-        }
-        
-        .card:hover, .admin-table:hover, .admin-form:hover {
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-            transform: translateY(-5px);
-        }
-        
-        /* Эффект параллакса для сайдбара */
-        .admin-sidebar {
-            transform: translateZ(0);
-            will-change: transform;
-        }
-        
-        /* Градиентные границы для активных элементов */
-        .admin-nav-item.active {
-            border-image: linear-gradient(135deg, var(--admin-primary), var(--admin-info)) 1;
-        }
-        
-        /* Анимация переключения вкладок */
-        .tab-content {
-            animation: fadeInUp 0.4s ease-out;
-        }
-        
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        /* Улучшенные скроллбары */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, var(--admin-primary), var(--admin-info));
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, var(--admin-info), var(--admin-primary));
-        }
-        
-        /* Эффект наведения для кнопок */
-        .btn-admin {
-            position: relative;
-            overflow: hidden;
-            z-index: 1;
-        }
-        
-        .btn-admin::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-            z-index: -1;
-        }
-        
-        .btn-admin:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-        
-        /* Анимация появления уведомлений */
-        .notification-item {
-            animation: slideInRight 0.3s ease-out;
-        }
-        
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-        
-        /* Эффект свечения для онлайн-статуса */
-        .status-indicator.online {
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { 
-                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); 
-            }
-            50% { 
-                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); 
-            }
+        table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.03) !important;
         }
     `;
     document.head.appendChild(style);
+    
+    // Создать и инициализировать админ-панель
+    const adminPanel = new AdminPanel();
+    
+    // Запустить анимацию статистики через 1 секунду
+    setTimeout(() => {
+        adminPanel.animateStatistics();
+    }, 1000);
+    
+    // Обновлять статистику каждые 5 минут
+    setInterval(() => {
+        adminPanel.updateStatistics();
+        adminPanel.animateStatistics();
+    }, 300000);
 });
