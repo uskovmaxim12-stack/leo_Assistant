@@ -1,65 +1,13 @@
-// js/main.js - РАБОЧАЯ ЛОГИКА СТАРТОВОЙ СТРАНИЦЫ
+// js/main.js - ЛОГИКА СТАРТОВОЙ СТРАНИЦЫ
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ Leo Assistant загружен');
+    console.log('🚀 Leo Assistant загружен');
     
     // Инициализация базы данных
-    const db = window.leoDB || {
-        authUser: function(login, password) {
-            const users = JSON.parse(localStorage.getItem('leo_users') || '[]');
-            const user = users.find(u => u.login === login && u.password === password);
-            return user || null;
-        },
-        addUser: function(userData) {
-            const users = JSON.parse(localStorage.getItem('leo_users') || '[]');
-            
-            // Проверяем, нет ли уже такого логина
-            if (users.some(u => u.login === userData.login)) {
-                return { success: false, error: "Этот логин уже занят" };
-            }
-            
-            const newUser = {
-                id: Date.now(),
-                login: userData.login,
-                password: userData.password, // В реальности нужно хэшировать!
-                name: userData.name,
-                avatar: userData.name.substring(0, 2).toUpperCase(),
-                class: "7Б",
-                role: "student",
-                points: 0,
-                level: 1,
-                tasks_completed: [],
-                created_at: new Date().toISOString()
-            };
-            
-            users.push(newUser);
-            localStorage.setItem('leo_users', JSON.stringify(users));
-            
-            // Создаем файл базы данных, если его нет
-            let dbData = JSON.parse(localStorage.getItem('leo_db') || '{}');
-            if (!dbData.users) dbData.users = [];
-            if (!dbData.classes) dbData.classes = {};
-            if (!dbData.classes["7Б"]) {
-                dbData.classes["7Б"] = {
-                    students: [],
-                    schedule: [],
-                    tasks: []
-                };
-            }
-            
-            // Добавляем в класс
-            dbData.classes["7Б"].students.push({
-                id: newUser.id,
-                name: newUser.name,
-                points: 0,
-                avatar: newUser.avatar
-            });
-            
-            localStorage.setItem('leo_db', JSON.stringify(dbData));
-            
-            return { success: true, user: newUser };
-        }
-    };
-
+    if (typeof leoDB === 'undefined') {
+        console.error('❌ База данных не загружена');
+        return;
+    }
+    
     // Переключение между формами
     const formSwitches = document.querySelectorAll('.form-switch');
     formSwitches.forEach(link => {
@@ -89,39 +37,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Проверяем демо-логин для тестирования
-            if (login === 'demo' && password === 'demo123') {
-                // Создаем демо-пользователя
-                const demoUser = {
-                    id: 999,
-                    login: 'demo',
-                    name: 'Демо Пользователь',
-                    avatar: 'ДП',
-                    class: "7Б",
-                    role: "student",
-                    points: 1250,
-                    level: 5,
-                    tasks_completed: [1, 2, 3]
-                };
-                
-                localStorage.setItem('current_user', JSON.stringify(demoUser));
-                showNotification('Демо-вход успешен!', 'success');
-                
-                setTimeout(() => {
-                    window.location.href = 'dashboard.html';
-                }, 1000);
-                return;
-            }
-            
             // Ищем пользователя в базе данных
-            const user = db.authUser(login, password);
+            const user = leoDB.authUser(login, password);
             
             if (user) {
                 showNotification(`Добро пожаловать, ${user.name}!`, 'success');
                 
                 // Сохраняем данные пользователя
-                const { password: _, ...userWithoutPassword } = user;
-                localStorage.setItem('current_user', JSON.stringify(userWithoutPassword));
+                localStorage.setItem('current_user', JSON.stringify(user));
                 
                 // Переход на дашборд
                 setTimeout(() => {
@@ -158,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Регистрируем пользователя
-            const result = db.addUser({
+            const result = leoDB.addUser({
                 login: login,
                 password: password,
                 name: name
@@ -168,10 +91,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 showNotification(`Аккаунт создан для ${name}!`, 'success');
                 
                 // Автоматически входим
-                const user = db.authUser(login, password);
+                const user = leoDB.authUser(login, password);
                 if (user) {
-                    const { password: _, ...userWithoutPassword } = user;
-                    localStorage.setItem('current_user', JSON.stringify(userWithoutPassword));
+                    localStorage.setItem('current_user', JSON.stringify(user));
                 }
                 
                 // Переход на дашборд
@@ -189,11 +111,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (adminBtn) {
         adminBtn.addEventListener('click', function() {
             const password = document.getElementById('adminPassword').value.trim();
+            const db = leoDB.getAll();
             
-            // Пароль администратора по умолчанию
-            const adminPassword = localStorage.getItem('admin_password') || 'admin123';
-            
-            if (password === adminPassword) {
+            if (db && password === db.system.admin_password) {
                 showNotification('Вход как администратор', 'success');
                 localStorage.setItem('is_admin', 'true');
                 
@@ -245,16 +165,4 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => notification.remove(), 300);
         }, 3000);
     }
-
-    // Автозаполнение для демо-входа
-    document.getElementById('loginUsername')?.addEventListener('focus', function() {
-        if (!this.value && window.location.hostname.includes('github.io')) {
-            this.value = 'demo';
-            document.getElementById('loginPassword').value = 'demo123';
-            showNotification('Демо-данные заполнены. Нажмите "Войти"', 'info');
-        }
-    });
-    
-    // Сообщение о загрузке
-    showNotification('Система загружена. Используйте логин "demo" и пароль "demo123" для тестирования', 'info');
 });
