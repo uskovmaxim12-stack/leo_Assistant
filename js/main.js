@@ -1,66 +1,101 @@
-// js/main.js - ИСПРАВЛЕННАЯ ЛОГИКА БЕЗ АВТОПОДСТАНОВКИ
+// js/main.js - ИСПРАВЛЕННАЯ РАБОЧАЯ ВЕРСИЯ
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Leo Assistant загружен');
     
-    // ========== ИНИЦИАЛИЗАЦИЯ ==========
     // Проверяем базу данных
     if (!window.leoDB) {
         console.error('❌ База данных не загружена');
-        showNotification('Ошибка базы данных', 'error');
+        showNotification('Ошибка инициализации системы', 'error');
         return;
     }
     
     console.log('📊 База данных готова');
     
-    // ========== ПАНЕЛЬ ВЫБОРА РЕЖИМА ==========
-    const modeButtons = document.querySelectorAll('.mode-btn');
-    const forms = {
-        login: document.getElementById('loginForm'),
-        register: document.getElementById('registerForm'),
-        admin: document.getElementById('adminForm')
-    };
+    // ========== ПЕРЕМЕННЫЕ ==========
+    let currentForm = 'login';
     
-    // Инициализация панели выбора
-    modeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const target = this.getAttribute('data-target');
-            
-            if (!forms[target]) {
-                console.error(`❌ Форма ${target} не найдена`);
-                return;
-            }
-            
-            // Убираем активный класс со всех кнопок
-            modeButtons.forEach(btn => btn.classList.remove('active'));
-            
-            // Добавляем активный класс текущей кнопке
-            this.classList.add('active');
-            
-            // Скрываем все формы
-            Object.values(forms).forEach(form => {
-                if (form) {
-                    form.classList.remove('active');
-                    form.style.display = 'none';
-                }
-            });
-            
-            // Показываем нужную форму
-            forms[target].style.display = 'block';
-            setTimeout(() => {
-                forms[target].classList.add('active');
-            }, 10);
-            
-            // Очищаем поля при переключении
-            clearForm(target);
-        });
-    });
+    // ========== ИНИЦИАЛИЗАЦИЯ ==========
+    initLoginPage();
     
-    // ========== ФОРМА ВХОДА ==========
-    const loginBtn = document.getElementById('loginBtn');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', handleLogin);
+    function initLoginPage() {
+        // Инициализация переключения форм
+        initFormSwitching();
         
-        // Enter для входа
+        // Инициализация кнопок
+        initButtons();
+        
+        // Инициализация обработчиков Enter
+        initEnterHandlers();
+        
+        console.log('✅ Страница входа инициализирована');
+    }
+    
+    function initFormSwitching() {
+        const links = document.querySelectorAll('.form-switch');
+        
+        links.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetForm = this.getAttribute('data-target');
+                switchForm(targetForm);
+            });
+        });
+    }
+    
+    function switchForm(formName) {
+        // Скрываем все формы
+        document.querySelectorAll('.form').forEach(form => {
+            form.classList.remove('active');
+            form.style.display = 'none';
+        });
+        
+        // Показываем нужную форму
+        const targetForm = document.getElementById(formName + 'Form');
+        if (targetForm) {
+            targetForm.style.display = 'block';
+            setTimeout(() => {
+                targetForm.classList.add('active');
+            }, 10);
+            currentForm = formName;
+            
+            // Очищаем поля
+            clearForm(formName);
+        }
+    }
+    
+    function clearForm(formName) {
+        const form = document.getElementById(formName + 'Form');
+        if (!form) return;
+        
+        const inputs = form.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.value = '';
+            input.classList.remove('input-error');
+        });
+    }
+    
+    function initButtons() {
+        // Кнопка входа
+        const loginBtn = document.getElementById('loginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', handleLogin);
+        }
+        
+        // Кнопка регистрации
+        const registerBtn = document.getElementById('registerBtn');
+        if (registerBtn) {
+            registerBtn.addEventListener('click', handleRegister);
+        }
+        
+        // Кнопка администратора
+        const adminBtn = document.getElementById('adminBtn');
+        if (adminBtn) {
+            adminBtn.addEventListener('click', handleAdminLogin);
+        }
+    }
+    
+    function initEnterHandlers() {
+        // Enter для формы входа
         const loginPassword = document.getElementById('loginPassword');
         if (loginPassword) {
             loginPassword.addEventListener('keypress', function(e) {
@@ -70,8 +105,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+        
+        // Enter для формы регистрации
+        const regConfirm = document.getElementById('regConfirmPassword');
+        if (regConfirm) {
+            regConfirm.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleRegister();
+                }
+            });
+        }
+        
+        // Enter для формы администратора
+        const adminPass = document.getElementById('adminPassword');
+        if (adminPass) {
+            adminPass.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAdminLogin();
+                }
+            });
+        }
     }
     
+    // ========== ОБРАБОТКА ВХОДА ==========
     function handleLogin() {
         const loginInput = document.getElementById('loginUsername');
         const passwordInput = document.getElementById('loginPassword');
@@ -85,35 +143,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const password = passwordInput.value.trim();
         
         // Валидация
-        if (!login) {
-            showNotification('Введите логин', 'error');
-            loginInput.focus();
-            return;
-        }
+        if (!validateInput(loginInput, 'Введите логин')) return;
+        if (!validateInput(passwordInput, 'Введите пароль')) return;
         
-        if (!password) {
-            showNotification('Введите пароль', 'error');
-            passwordInput.focus();
-            return;
-        }
-        
-        // Блокируем кнопку
+        // Начинаем процесс входа
         const btn = document.getElementById('loginBtn');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Вход...';
-        btn.disabled = true;
+        setButtonLoading(btn, true);
         
-        // Задержка для имитации проверки
         setTimeout(() => {
             const user = leoDB.authUser(login, password);
             
             if (user) {
                 // Успешный вход
+                setButtonSuccess(btn, 'Успешно!');
                 showNotification(`Добро пожаловать, ${user.name}!`, 'success');
-                
-                // Анимация успеха
-                btn.innerHTML = '<i class="fas fa-check"></i> Успешно!';
-                btn.style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
                 
                 // Сохраняем пользователя
                 localStorage.setItem('current_user', JSON.stringify(user));
@@ -124,32 +167,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 1000);
             } else {
                 // Ошибка входа
+                setButtonLoading(btn, false);
                 showNotification('Неверный логин или пароль', 'error');
-                
-                // Восстанавливаем кнопку
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                
-                // Анимация ошибки
-                const form = document.getElementById('loginForm');
-                form.classList.add('shake');
-                setTimeout(() => {
-                    form.classList.remove('shake');
-                }, 500);
-                
-                // Очищаем пароль
+                showInputError(passwordInput);
                 passwordInput.value = '';
                 passwordInput.focus();
             }
         }, 800);
     }
     
-    // ========== ФОРМА РЕГИСТРАЦИИ ==========
-    const registerBtn = document.getElementById('registerBtn');
-    if (registerBtn) {
-        registerBtn.addEventListener('click', handleRegister);
-    }
-    
+    // ========== ОБРАБОТКА РЕГИСТРАЦИИ ==========
     function handleRegister() {
         const loginInput = document.getElementById('regLogin');
         const nameInput = document.getElementById('regName');
@@ -167,49 +194,33 @@ document.addEventListener('DOMContentLoaded', function() {
         const confirmPassword = confirmInput.value;
         
         // Валидация
-        if (!login) {
-            showNotification('Введите логин', 'error');
-            loginInput.focus();
-            return;
-        }
+        if (!validateInput(loginInput, 'Введите логин')) return;
+        if (!validateInput(nameInput, 'Введите ваше имя')) return;
+        if (!validateInput(passwordInput, 'Введите пароль')) return;
+        if (!validateInput(confirmInput, 'Повторите пароль')) return;
         
         if (login.length < 3) {
             showNotification('Логин должен быть не менее 3 символов', 'error');
-            loginInput.focus();
-            return;
-        }
-        
-        if (!name) {
-            showNotification('Введите ваше имя', 'error');
-            nameInput.focus();
-            return;
-        }
-        
-        if (!password) {
-            showNotification('Введите пароль', 'error');
-            passwordInput.focus();
+            showInputError(loginInput);
             return;
         }
         
         if (password.length < 4) {
             showNotification('Пароль должен быть не менее 4 символов', 'error');
-            passwordInput.focus();
+            showInputError(passwordInput);
             return;
         }
         
         if (password !== confirmPassword) {
             showNotification('Пароли не совпадают', 'error');
-            confirmInput.focus();
+            showInputError(confirmInput);
             return;
         }
         
-        // Блокируем кнопку
+        // Начинаем процесс регистрации
         const btn = document.getElementById('registerBtn');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Регистрация...';
-        btn.disabled = true;
+        setButtonLoading(btn, true);
         
-        // Регистрация
         setTimeout(() => {
             const result = leoDB.addUser({
                 login: login,
@@ -219,11 +230,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (result.success) {
                 // Успешная регистрация
+                setButtonSuccess(btn, 'Создан!');
                 showNotification(`Аккаунт создан для ${result.user.name}!`, 'success');
-                
-                // Анимация успеха
-                btn.innerHTML = '<i class="fas fa-check"></i> Успешно!';
-                btn.style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
                 
                 // Автоматический вход
                 const user = leoDB.authUser(login, password);
@@ -236,33 +244,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 // Ошибка регистрации
+                setButtonLoading(btn, false);
                 showNotification(result.error || 'Ошибка регистрации', 'error');
-                
-                // Восстанавливаем кнопку
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                
-                // Анимация ошибки
-                const form = document.getElementById('registerForm');
-                form.classList.add('shake');
-                setTimeout(() => {
-                    form.classList.remove('shake');
-                }, 500);
-                
-                // Очищаем пароли
-                passwordInput.value = '';
-                confirmInput.value = '';
+                showInputError(loginInput);
                 loginInput.focus();
             }
         }, 1000);
     }
     
-    // ========== ФОРМА АДМИНИСТРАТОРА ==========
-    const adminBtn = document.getElementById('adminBtn');
-    if (adminBtn) {
-        adminBtn.addEventListener('click', handleAdminLogin);
-    }
-    
+    // ========== ОБРАБОТКА АДМИНИСТРАТОРА ==========
     function handleAdminLogin() {
         const passwordInput = document.getElementById('adminPassword');
         
@@ -273,29 +263,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const password = passwordInput.value.trim();
         
-        if (!password) {
-            showNotification('Введите пароль администратора', 'error');
-            passwordInput.focus();
-            return;
-        }
+        if (!validateInput(passwordInput, 'Введите пароль администратора')) return;
         
-        // Блокируем кнопку
+        // Начинаем процесс проверки
         const btn = document.getElementById('adminBtn');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Проверка...';
-        btn.disabled = true;
+        setButtonLoading(btn, true);
         
-        // Проверка пароля администратора
         setTimeout(() => {
             const isAdmin = leoDB.authAdmin(password);
             
             if (isAdmin) {
                 // Успешный вход как администратор
-                showNotification('Доступ разрешен. Вход как администратор', 'success');
-                
-                // Анимация успеха
-                btn.innerHTML = '<i class="fas fa-check"></i> Доступ разрешен!';
-                btn.style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
+                setButtonSuccess(btn, 'Доступ разрешен!');
+                showNotification('Вход как администратор выполнен', 'success');
                 
                 localStorage.setItem('is_admin', 'true');
                 
@@ -304,20 +284,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 1000);
             } else {
                 // Ошибка входа
+                setButtonLoading(btn, false);
                 showNotification('Неверный пароль администратора', 'error');
-                
-                // Восстанавливаем кнопку
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                
-                // Анимация ошибки
-                const form = document.getElementById('adminForm');
-                form.classList.add('shake');
-                setTimeout(() => {
-                    form.classList.remove('shake');
-                }, 500);
-                
-                // Очищаем поле
+                showInputError(passwordInput);
                 passwordInput.value = '';
                 passwordInput.focus();
             }
@@ -325,26 +294,56 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
-    function clearForm(formType) {
-        switch(formType) {
-            case 'login':
-                document.getElementById('loginUsername')?.value = '';
-                document.getElementById('loginPassword')?.value = '';
-                break;
-            case 'register':
-                document.getElementById('regLogin')?.value = '';
-                document.getElementById('regName')?.value = '';
-                document.getElementById('regPassword')?.value = '';
-                document.getElementById('regConfirmPassword')?.value = '';
-                break;
-            case 'admin':
-                document.getElementById('adminPassword')?.value = '';
-                break;
+    function validateInput(input, errorMessage) {
+        if (!input.value.trim()) {
+            showNotification(errorMessage, 'error');
+            showInputError(input);
+            input.focus();
+            return false;
+        }
+        return true;
+    }
+    
+    function showInputError(input) {
+        input.classList.add('input-error');
+        setTimeout(() => {
+            input.classList.remove('input-error');
+        }, 500);
+    }
+    
+    function setButtonLoading(button, isLoading) {
+        if (!button) return;
+        
+        if (isLoading) {
+            button.classList.add('loading');
+            button.disabled = true;
+        } else {
+            button.classList.remove('loading');
+            button.disabled = false;
         }
     }
     
+    function setButtonSuccess(button, text) {
+        if (!button) return;
+        
+        const icon = button.querySelector('i:first-child');
+        const btnText = button.querySelector('.btn-text');
+        
+        if (icon) icon.className = 'fas fa-check';
+        if (btnText) btnText.textContent = text;
+        button.classList.add('btn-success');
+        button.classList.remove('loading');
+    }
+    
     function showNotification(message, type = 'info') {
-        // Создаем элемент
+        // Удаляем старые уведомления
+        const oldNotifications = document.querySelectorAll('.notification');
+        oldNotifications.forEach(notification => {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        });
+        
+        // Создаем новое уведомление
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
         
@@ -367,19 +366,19 @@ document.addEventListener('DOMContentLoaded', function() {
             right: 20px;
             background: ${getNotificationColor(type)};
             color: white;
-            padding: 15px 20px;
-            border-radius: 10px;
+            padding: 18px 22px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             gap: 12px;
             z-index: 10000;
-            animation: slideInRight 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            animation: slideInRight 0.4s ease;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
             min-width: 300px;
             max-width: 400px;
         `;
         
-        // Стиль кнопки закрытия
+        // Кнопка закрытия
         const closeBtn = notification.querySelector('.notification-close');
         closeBtn.style.cssText = `
             margin-left: auto;
@@ -416,10 +415,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function getNotificationColor(type) {
         const colors = {
-            'success': '#10b981',
-            'error': '#ef4444',
-            'warning': '#f59e0b',
-            'info': '#3b82f6'
+            'success': 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            'error': 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+            'warning': 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            'info': 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
         };
         return colors[type] || colors.info;
     }
@@ -449,29 +448,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
-            20%, 40%, 60%, 80% { transform: translateX(10px); }
-        }
-        
-        .shake {
-            animation: shake 0.5s ease;
-        }
-        
         .form {
-            transition: opacity 0.3s, transform 0.3s;
+            transition: opacity 0.4s, transform 0.4s;
         }
         
         .form:not(.active) {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(30px) scale(0.95);
             pointer-events: none;
         }
         
         .form.active {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
         
         .notification-close:hover {
@@ -481,20 +470,5 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     document.head.appendChild(style);
     
-    // ========== ИНИЦИАЛИЗАЦИЯ ФОРМ ==========
-    // Показываем форму входа по умолчанию
-    if (forms.login) {
-        forms.login.style.display = 'block';
-        setTimeout(() => {
-            forms.login.classList.add('active');
-        }, 10);
-    }
-    
-    // Устанавливаем активную кнопку входа
-    const loginBtnElement = document.querySelector('.mode-btn[data-target="login"]');
-    if (loginBtnElement) {
-        loginBtnElement.classList.add('active');
-    }
-    
-    console.log('✅ Система входа инициализирована');
+    console.log('✅ Все системы готовы');
 });
