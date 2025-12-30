@@ -1,56 +1,62 @@
-// js/database.js - ПРОСТАЯ БАЗА ДАННЫХ ДЛЯ LEO ASSISTANT
+// js/database.js - РАБОЧАЯ БАЗА ДАННЫХ
 class Database {
     constructor() {
-        this.dbName = 'leo_db';
+        this.dbName = 'leo_assistant_db';
         this.init();
     }
     
+    // Инициализация базы
     init() {
-        // Создаем базу данных, если ее нет
         if (!localStorage.getItem(this.dbName)) {
             const initialData = {
                 version: "1.0",
                 users: [],
                 classes: {
                     "7Б": {
-                        schedule: [], // Будет заполнено реальным расписанием
+                        schedule: [],
                         tasks: [],
                         students: []
                     }
                 },
-                ai_knowledge: {},
+                ai_knowledge: {
+                    greetings: ['Привет!', 'Здравствуй!', 'Привет, как дела?'],
+                    math: ['Математика изучает числа, структуры, пространство и изменения'],
+                    physics: ['Физика - наука о природе, изучающая материю и энергию'],
+                    history: ['История изучает прошлое человечества']
+                },
                 system: {
                     admin_password: "admin123",
-                    total_logins: 0
+                    total_logins: 0,
+                    created_at: new Date().toISOString()
                 }
             };
             this.save(initialData);
+            console.log('✅ База данных создана');
         }
     }
     
+    // Сохранить данные
     save(data) {
         localStorage.setItem(this.dbName, JSON.stringify(data));
     }
     
+    // Получить все данные
     getAll() {
         const data = localStorage.getItem(this.dbName);
         return data ? JSON.parse(data) : null;
     }
     
-    // ===== ПОЛЬЗОВАТЕЛИ =====
+    // ===== РАБОТА С ПОЛЬЗОВАТЕЛЯМИ =====
     
-    getUsers() {
-        const db = this.getAll();
-        return db?.users || [];
-    }
-    
+    // Добавить нового пользователя
     addUser(userData) {
         const db = this.getAll();
         if (!db) return { success: false, error: "База данных не найдена" };
         
-        // Проверяем, нет ли уже такого логина
-        if (db.users.some(u => u.login === userData.login)) {
-            return { success: false, error: "Этот логин уже занят" };
+        // Проверяем, нет ли уже такого пользователя
+        const userExists = db.users.some(u => u.login === userData.login);
+        if (userExists) {
+            return { success: false, error: "Пользователь уже существует" };
         }
         
         // Создаем нового пользователя
@@ -60,8 +66,8 @@ class Database {
             password: userData.password,
             name: userData.name,
             avatar: this.generateAvatar(userData.name),
-            class: userData.class || "7Б",
-            role: userData.role || "student",
+            class: "7Б",
+            role: "student",
             points: 0,
             level: 1,
             tasks_completed: [],
@@ -83,9 +89,11 @@ class Database {
         });
         
         this.save(db);
+        console.log('✅ Пользователь добавлен:', newUser.name);
         return { success: true, user: newUser };
     }
     
+    // Авторизация пользователя
     authUser(login, password) {
         const db = this.getAll();
         if (!db) return null;
@@ -101,25 +109,15 @@ class Database {
             
             // Убираем пароль из возвращаемых данных
             const { password: _, ...userWithoutPassword } = user;
+            console.log('✅ Пользователь авторизован:', user.name);
             return userWithoutPassword;
         }
         
+        console.log('❌ Авторизация не удалась для:', login);
         return null;
     }
     
-    // ===== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
-    
-    generateAvatar(name) {
-        if (!name) return '??';
-        const names = name.split(' ');
-        if (names.length >= 2) {
-            return (names[0][0] + names[1][0]).toUpperCase();
-        }
-        return name.substring(0, 2).toUpperCase();
-    }
-    
-    // ===== СТАТИСТИКА =====
-    
+    // Получить рейтинг класса
     getClassRating() {
         const db = this.getAll();
         if (!db || !db.classes["7Б"] || !db.classes["7Б"].students) {
@@ -131,6 +129,7 @@ class Database {
             .slice(0, 10);
     }
     
+    // Обновить очки пользователя
     updateUserPoints(userId, points) {
         const db = this.getAll();
         if (!db) return false;
@@ -148,7 +147,32 @@ class Database {
         }
         
         this.save(db);
+        console.log('✅ Очки обновлены для пользователя ID:', userId);
         return true;
+    }
+    
+    // ===== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
+    
+    generateAvatar(name) {
+        if (!name) return '??';
+        const names = name.split(' ');
+        if (names.length >= 2) {
+            return (names[0][0] + names[1][0]).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    }
+    
+    // Получить статистику системы
+    getStats() {
+        const db = this.getAll();
+        if (!db) return null;
+        
+        return {
+            total_users: db.users.length,
+            total_logins: db.system.total_logins,
+            class_students: db.classes["7Б"]?.students?.length || 0,
+            system_version: db.system.version
+        };
     }
 }
 
