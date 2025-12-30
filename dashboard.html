@@ -150,23 +150,25 @@
                             </div>
                         </div>
 
-                        <!-- Расписание сегодня -->
-                        <div class="widget">
-                            <div class="widget-header">
-                                <h3><i class="fas fa-calendar-day"></i> Сегодня</h3>
-                            </div>
-                            <div class="widget-body">
-                                <div class="today-schedule" id="todaySchedule">
-                                    <div class="schedule-item">
-                                        <div class="lesson-time">9:00</div>
-                                        <div class="lesson-info">
-                                            <div class="lesson-name">Загрузка...</div>
-                                            <div class="lesson-room">-</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Вставьте этот код в dashboard.html в раздел "Секция Расписание" -->
+<div class="content-section" id="section-schedule">
+    <div class="widget widget-full">
+        <div class="widget-header">
+            <h3><i class="fas fa-calendar-alt"></i> Полное расписание 7Б</h3>
+            <div class="schedule-today">
+                <span>Сегодня:</span>
+                <strong id="currentDayName">--</strong>
+            </div>
+        </div>
+        <div class="widget-body">
+            <div class="schedule-container">
+                <div class="schedule-list" id="scheduleList">
+                    <!-- Расписание загрузится через JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
                         <!-- Прогресс -->
                         <div class="widget widget-chart">
@@ -294,4 +296,5 @@
     <!-- Для графиков -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
+
 </html>
