@@ -1,130 +1,111 @@
-// dashboard.js - ЛОГИКА ГЛАВНОГО ЭКРАНА
-
+// dashboard.js - ГЛАВНЫЙ ЭКРАН С РЕАЛЬНЫМИ ДАННЫМИ
 class Dashboard {
     constructor() {
+        this.currentUser = null;
         this.init();
     }
     
     init() {
         console.log('🎮 Главный экран инициализирован');
         
-        // Проверка авторизации
-        this.checkAuth();
+        // Загрузка реального пользователя
+        this.loadCurrentUser();
+        if (!this.currentUser) {
+            window.location.href = 'index.html';
+            return;
+        }
         
         // Инициализация компонентов
+        this.initParticles();
         this.initNavigation();
-        this.initUserData();
+        this.initUserInterface();
         this.initAIChat();
         this.initSchedule();
-        this.initRating();
+        this.initRating(); // РЕАЛЬНЫЙ РЕЙТИНГ
         this.initProgress();
-        this.initGameZone();
+        this.initTasks();
         this.initEvents();
-        
-        // Загрузка частиц
-        this.initParticles();
         
         // Анимация статистики
         this.animateStats();
     }
     
-    checkAuth() {
-        const user = JSON.parse(localStorage.getItem('current_user'));
-        if (!user) {
-            window.location.href = 'index.html';
-            return false;
-        }
-        return true;
-    }
-    
-    initNavigation() {
-        // Навигация в сайдбаре
-        const navItems = document.querySelectorAll('.nav-item');
-        navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                
-                // Убрать активный класс у всех
-                navItems.forEach(nav => nav.classList.remove('active'));
-                
-                // Добавить активный класс
-                item.classList.add('active');
-                
-                // Обновить заголовок
-                this.updatePageTitle(item.textContent.trim());
-            });
-        });
-        
-        // Кнопка сворачивания сайдбара
-        const toggleBtn = document.createElement('button');
-        toggleBtn.className = 'sidebar-toggle';
-        toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
-        toggleBtn.style.cssText = `
-            display: none;
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 1000;
-            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 14px;
-            cursor: pointer;
-            box-shadow: 0 5px 20px rgba(139, 92, 246, 0.4);
-            transition: all 0.3s ease;
-        `;
-        
-        document.body.appendChild(toggleBtn);
-        
-        toggleBtn.addEventListener('click', () => {
-            document.querySelector('.dashboard-sidebar').classList.toggle('active');
-        });
-        
-        // Адаптивность
-        window.addEventListener('resize', () => {
-            if (window.innerWidth <= 992) {
-                toggleBtn.style.display = 'block';
-            } else {
-                toggleBtn.style.display = 'none';
-                document.querySelector('.dashboard-sidebar').classList.remove('active');
+    loadCurrentUser() {
+        const userData = localStorage.getItem('current_user');
+        if (userData) {
+            this.currentUser = JSON.parse(userData);
+            
+            // Обновить из базы данных на случай изменений
+            const freshUser = leoDB.getUserById(this.currentUser.id);
+            if (freshUser) {
+                this.currentUser = freshUser;
+                localStorage.setItem('current_user', JSON.stringify(freshUser));
             }
-        });
-        
-        // Запустить проверку при загрузке
-        if (window.innerWidth <= 992) {
-            toggleBtn.style.display = 'block';
         }
     }
     
-    updatePageTitle(title) {
-        const header = document.querySelector('.dashboard-header h1');
-        if (header) {
-            header.textContent = title;
+    // ============ ЛЕТАЮЩИЕ ЧАСТИЦЫ ============
+    initParticles() {
+        if (typeof particlesJS !== 'undefined') {
+            particlesJS('particles-js', {
+                particles: {
+                    number: { value: 80, density: { enable: true, value_area: 800 } },
+                    color: { value: ["#8b5cf6", "#3b82f6", "#10b981"] },
+                    shape: { type: "circle" },
+                    opacity: { value: 0.5, random: true, anim: { enable: true, speed: 1 } },
+                    size: { value: 3, random: true, anim: { enable: true, speed: 2 } },
+                    line_linked: {
+                        enable: true,
+                        distance: 150,
+                        color: "#8b5cf6",
+                        opacity: 0.2,
+                        width: 1
+                    },
+                    move: {
+                        enable: true,
+                        speed: 1,
+                        direction: "none",
+                        random: true,
+                        out_mode: "out",
+                        attract: { enable: true, rotateX: 600, rotateY: 1200 }
+                    }
+                },
+                interactivity: {
+                    detect_on: "canvas",
+                    events: {
+                        onhover: { enable: true, mode: "grab" },
+                        onclick: { enable: true, mode: "push" },
+                        resize: true
+                    }
+                },
+                retina_detect: true
+            });
         }
     }
     
-    initUserData() {
-        const user = JSON.parse(localStorage.getItem('current_user')) || {
-            name: 'Максим Усков',
-            avatar: 'МУ',
-            role: 'Ученик 7Б',
-            points: 1280,
-            level: 5,
-            streak: 7
-        };
+    // ============ ИНТЕРФЕЙС ПОЛЬЗОВАТЕЛЯ ============
+    initUserInterface() {
+        if (!this.currentUser) return;
         
-        // Обновить данные пользователя
-        document.querySelector('.user-avatar').textContent = user.avatar;
-        document.querySelector('.user-details h3').textContent = user.name;
-        document.querySelector('.user-details .role').textContent = user.role;
+        // Заполнить данные пользователя
+        document.querySelector('.user-avatar').textContent = this.currentUser.avatar;
+        document.querySelector('.user-details h3').textContent = this.currentUser.name;
+        document.querySelector('.user-details .role').textContent = `Ученик ${this.currentUser.class}`;
         
-        // Обновить быструю статистику
+        // Заголовок с именем
+        document.querySelector('.dashboard-header h1').innerHTML = 
+            `Добро пожаловать, ${this.currentUser.name}! 🚀`;
+        
+        // Обновить статистику
+        this.updateStats();
+    }
+    
+    updateStats() {
         const stats = {
-            'statPoints': user.points,
-            'statLevel': user.level,
-            'statStreak': user.streak,
-            'statTasks': 12 // Демо-значение
+            'statPoints': this.currentUser.points,
+            'statLevel': this.currentUser.level,
+            'statStreak': this.currentUser.streak || 0,
+            'statTasks': this.currentUser.completed_tasks?.length || 0
         };
         
         Object.entries(stats).forEach(([id, value]) => {
@@ -133,158 +114,55 @@ class Dashboard {
                 element.textContent = value;
             }
         });
+        
+        // Прогресс до следующего уровня
+        const progressPercent = (this.currentUser.points % 200) / 2;
+        const progressElement = document.querySelector('.progress-fill');
+        if (progressElement) {
+            progressElement.style.width = `${progressPercent}%`;
+        }
     }
     
-    initAIChat() {
-        const chatInput = document.querySelector('.chat-input');
-        const sendBtn = document.querySelector('.chat-send-btn');
-        const messagesContainer = document.querySelector('.chat-messages');
-        
-        if (!chatInput || !sendBtn || !messagesContainer) return;
-        
-        // Демо-сообщения
-        const demoMessages = [
-            {
-                type: 'ai',
-                text: 'Привет! Я Лео, твой AI-помощник. Чем могу помочь?'
-            },
-            {
-                type: 'user',
-                text: 'Привет! Помоги с задачей по математике'
-            },
-            {
-                type: 'ai',
-                text: 'Конечно! Какую задачу нужно решить?'
-            }
-        ];
-        
-        // Показать демо-сообщения
-        demoMessages.forEach(msg => {
-            this.addMessage(msg.text, msg.type);
-        });
-        
-        // Ответы AI
-        const aiResponses = [
-            'Хорошо, помогу с этим!',
-            'Отличный вопрос! Давайте разберем...',
-            'Для решения этой задачи нужно...',
-            'Попробуйте использовать формулу...',
-            'Вот пошаговое решение:',
-            'Не переживайте, это проще чем кажется!'
-        ];
-        
-        // Отправка сообщения
-        const sendMessage = () => {
-            const text = chatInput.value.trim();
-            if (!text) return;
-            
-            // Добавить сообщение пользователя
-            this.addMessage(text, 'user');
-            chatInput.value = '';
-            
-            // Имитация ответа AI
-            setTimeout(() => {
-                const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
-                this.addMessage(randomResponse, 'ai');
-            }, 1000 + Math.random() * 2000);
-        };
-        
-        sendBtn.addEventListener('click', sendMessage);
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
-    }
-    
-    addMessage(text, type) {
-        const messagesContainer = document.querySelector('.chat-messages');
-        if (!messagesContainer) return;
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `chat-message ${type}-message`;
-        messageDiv.textContent = text;
-        
-        messagesContainer.appendChild(messageDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-    
-    initSchedule() {
-        const scheduleData = [
-            {
-                day: 'Понедельник',
-                lessons: [
-                    { time: '9:00', name: 'Математика', room: '212' },
-                    { time: '10:00', name: 'Русский язык', room: '108' },
-                    { time: '11:00', name: 'Физика', room: '305' }
-                ]
-            },
-            {
-                day: 'Вторник',
-                lessons: [
-                    { time: '9:00', name: 'Английский', room: '203' },
-                    { time: '10:00', name: 'История', room: '111' },
-                    { time: '11:00', name: 'Литература', room: '109' }
-                ]
-            }
-        ];
-        
-        const scheduleList = document.querySelector('.schedule-list');
-        if (!scheduleList) return;
-        
-        scheduleList.innerHTML = '';
-        
-        scheduleData.forEach(day => {
-            const dayElement = document.createElement('div');
-            dayElement.className = 'schedule-day';
-            
-            let lessonsHTML = '';
-            day.lessons.forEach(lesson => {
-                lessonsHTML += `
-                    <div class="schedule-lesson">
-                        <span class="lesson-time">${lesson.time}</span>
-                        <span class="lesson-name">${lesson.name}</span>
-                        <span class="lesson-room">${lesson.room}</span>
-                    </div>
-                `;
-            });
-            
-            dayElement.innerHTML = `
-                <div class="schedule-day-header">
-                    <i class="fas fa-calendar-day"></i>
-                    ${day.day}
-                </div>
-                ${lessonsHTML}
-            `;
-            
-            scheduleList.appendChild(dayElement);
-        });
-    }
-    
+    // ============ РЕАЛЬНЫЙ РЕЙТИНГ КЛАССА ============
     initRating() {
-        const classRating = [
-            { name: 'Александр Иванов', points: 1450, avatar: 'АИ' },
-            { name: 'Мария Петрова', points: 1390, avatar: 'МП' },
-            { name: 'Максим Усков', points: 1280, avatar: 'МУ', current: true },
-            { name: 'Дарья Сидорова', points: 1120, avatar: 'ДС' },
-            { name: 'Илья Козлов', points: 980, avatar: 'ИК' }
-        ];
-        
         const ratingList = document.querySelector('.rating-list');
         if (!ratingList) return;
         
+        // ПОЛУЧИТЬ РЕАЛЬНЫЙ РЕЙТИНГ ИЗ БАЗЫ ДАННЫХ
+        const realRating = leoDB.getClassRating();
+        
+        if (realRating.length === 0) {
+            ratingList.innerHTML = `
+                <div class="empty-rating">
+                    <i class="fas fa-users"></i>
+                    <p>В классе пока нет учеников</p>
+                </div>
+            `;
+            return;
+        }
+        
         ratingList.innerHTML = '';
         
-        classRating.forEach((student, index) => {
+        realRating.forEach((student, index) => {
+            const isCurrentUser = student.id === this.currentUser.id;
             const item = document.createElement('div');
-            item.className = `rating-item ${student.current ? 'current-user' : ''}`;
+            item.className = `rating-item ${isCurrentUser ? 'current-user' : ''}`;
             item.style.animationDelay = `${index * 0.1}s`;
             
+            // Медали для топ-3
+            let rankIcon = `${student.rank}`;
+            if (student.rank === 1) rankIcon = '🥇';
+            if (student.rank === 2) rankIcon = '🥈';
+            if (student.rank === 3) rankIcon = '🥉';
+            
             item.innerHTML = `
-                <div class="rating-rank">${index + 1}</div>
+                <div class="rating-rank">${rankIcon}</div>
                 <div class="rating-avatar">${student.avatar}</div>
                 <div class="rating-info">
-                    <div class="rating-name">${student.name}</div>
+                    <div class="rating-name">
+                        ${student.name}
+                        ${isCurrentUser ? '<span class="you-badge">(Вы)</span>' : ''}
+                    </div>
                     <div class="rating-details">
                         <span class="rating-points">${student.points} очков</span>
                     </div>
@@ -295,106 +173,167 @@ class Dashboard {
         });
     }
     
-    initProgress() {
-        const progressFill = document.querySelector('.progress-fill');
-        const progressValue = document.querySelector('.progress-value');
-        const progressText = document.querySelector('.progress-text');
+    // ============ ЗАДАНИЯ ============
+    initTasks() {
+        const tasksList = document.querySelector('.tasks-list');
+        if (!tasksList || !this.currentUser) return;
         
-        if (!progressFill || !progressValue || !progressText) return;
+        // ПОЛУЧИТЬ РЕАЛЬНЫЕ ЗАДАНИЯ ПОЛЬЗОВАТЕЛЯ
+        const userTasks = leoDB.getUserTasks(this.currentUser.id);
         
-        // Демо-прогресс (75%)
-        const progress = 75;
+        if (userTasks.length === 0) {
+            tasksList.innerHTML = `
+                <div class="empty-tasks">
+                    <i class="fas fa-check-circle"></i>
+                    <p>Нет активных заданий</p>
+                </div>
+            `;
+            return;
+        }
         
-        progressFill.style.width = `${progress}%`;
-        progressValue.textContent = `${progress}%`;
-        progressText.textContent = `До следующего уровня: ${100 - progress}%`;
+        tasksList.innerHTML = '';
         
-        // Анимация прогресса
-        setTimeout(() => {
-            progressFill.style.transition = 'width 1.5s cubic-bezier(0.4, 0, 0.2, 1)';
-        }, 500);
+        userTasks.forEach(task => {
+            const taskElement = document.createElement('div');
+            taskElement.className = `task-item ${task.completed ? 'completed' : ''}`;
+            
+            taskElement.innerHTML = `
+                <div class="task-checkbox">
+                    <i class="fas fa-${task.completed ? 'check-circle' : 'circle'}"></i>
+                </div>
+                <div class="task-content">
+                    <div class="task-title">${task.title}</div>
+                    <div class="task-subject">${task.subject}</div>
+                </div>
+                <div class="task-points">+${task.points || 50}</div>
+            `;
+            
+            // Обработчик выполнения задания
+            if (!task.completed) {
+                taskElement.addEventListener('click', () => {
+                    this.completeTask(task.id);
+                });
+            }
+            
+            tasksList.appendChild(taskElement);
+        });
     }
     
-    initGameZone() {
-        const gameStats = {
-            points: 1280,
-            level: 5,
-            streak: 7,
-            achievements: 12
+    completeTask(taskId) {
+        if (!this.currentUser) return;
+        
+        // ОТМЕТИТЬ ЗАДАНИЕ ВЫПОЛНЕННЫМ В БАЗЕ ДАННЫХ
+        const success = leoDB.completeTask(this.currentUser.id, taskId);
+        
+        if (success) {
+            // Обновить пользователя
+            const updatedUser = leoDB.getUserById(this.currentUser.id);
+            if (updatedUser) {
+                this.currentUser = updatedUser;
+                localStorage.setItem('current_user', JSON.stringify(updatedUser));
+                
+                // Обновить интерфейс
+                this.updateStats();
+                this.initRating(); // Обновить рейтинг
+                this.initTasks(); // Обновить задания
+                
+                this.showNotification('🎉 Задание выполнено! +50 очков', 'success');
+            }
+        }
+    }
+    
+    // ============ ОСТАЛЬНАЯ ЛОГИКА (без изменений) ============
+    initNavigation() {
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                navItems.forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+    }
+    
+    initAIChat() {
+        // Простой AI чат
+        const chatInput = document.querySelector('.chat-input');
+        const sendBtn = document.querySelector('.chat-send-btn');
+        
+        if (!chatInput || !sendBtn) return;
+        
+        const sendMessage = () => {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            
+            this.addMessage(text, 'user');
+            chatInput.value = '';
+            
+            // Ответ AI
+            setTimeout(() => {
+                const responses = [
+                    'Отлично! Помогу с этим.',
+                    'Интересный вопрос! Давайте разберем.',
+                    'Для решения нужно использовать...',
+                    'Попробуйте следующий подход...'
+                ];
+                const response = responses[Math.floor(Math.random() * responses.length)];
+                this.addMessage(response, 'ai');
+            }, 1000);
         };
         
-        // Обновить игровую статистику
-        Object.entries(gameStats).forEach(([key, value]) => {
-            const element = document.getElementById(`game${key.charAt(0).toUpperCase() + key.slice(1)}`);
-            if (element) {
-                element.textContent = value;
-            }
+        sendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
         });
-        
-        // Кнопка выполнения задания
-        const completeBtn = document.querySelector('.complete-task-btn');
-        if (completeBtn) {
-            completeBtn.addEventListener('click', () => {
-                // Увеличить очки
-                const pointsElement = document.getElementById('gamePoints');
-                const currentPoints = parseInt(pointsElement.textContent);
-                const newPoints = currentPoints + 50;
-                pointsElement.textContent = newPoints;
-                
-                // Обновить общие очки
-                document.getElementById('statPoints').textContent = newPoints;
-                
-                // Показать уведомление
-                this.showNotification('🎉 +50 очков! Задание выполнено!', 'success');
-                
-                // Обновить прогресс
-                this.updateProgress(10);
-            });
-        }
     }
     
-    updateProgress(increment) {
-        const progressFill = document.querySelector('.progress-fill');
-        const progressValue = document.querySelector('.progress-value');
+    addMessage(text, type) {
+        const messagesContainer = document.querySelector('.chat-messages');
+        if (!messagesContainer) return;
         
-        if (!progressFill || !progressValue) return;
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${type}-message`;
+        messageDiv.textContent = text;
+        messageDiv.style.animation = 'slideIn 0.3s ease-out';
         
-        const currentWidth = parseInt(progressFill.style.width) || 0;
-        let newWidth = currentWidth + increment;
+        messagesContainer.appendChild(messageDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    initSchedule() {
+        const scheduleData = [
+            { day: 'Пн', lessons: ['Математика', 'Русский язык', 'Физика'] },
+            { day: 'Вт', lessons: ['Английский', 'История', 'Литература'] }
+        ];
         
-        if (newWidth >= 100) {
-            newWidth = 100;
-            
-            // Уровень повышен
-            setTimeout(() => {
-                this.showNotification('🎊 Поздравляем! Вы достигли нового уровня!', 'success');
-                
-                // Сбросить прогресс
-                setTimeout(() => {
-                    progressFill.style.width = '0%';
-                    progressValue.textContent = '0%';
-                    
-                    // Увеличить уровень
-                    const levelElement = document.getElementById('gameLevel');
-                    const currentLevel = parseInt(levelElement.textContent);
-                    levelElement.textContent = currentLevel + 1;
-                    document.getElementById('statLevel').textContent = currentLevel + 1;
-                    
-                    // Плавное заполнение до 0%
-                    setTimeout(() => {
-                        progressFill.style.transition = 'width 0.5s ease';
-                        progressFill.style.width = '0%';
-                    }, 300);
-                }, 1000);
-            }, 500);
+        const scheduleList = document.querySelector('.schedule-list');
+        if (!scheduleList) return;
+        
+        scheduleData.forEach(day => {
+            const dayElement = document.createElement('div');
+            dayElement.className = 'schedule-day';
+            dayElement.innerHTML = `
+                <div class="schedule-day-header">
+                    <i class="fas fa-calendar-day"></i>
+                    ${day.day}
+                </div>
+                ${day.lessons.map(lesson => `
+                    <div class="schedule-lesson">${lesson}</div>
+                `).join('')}
+            `;
+            scheduleList.appendChild(dayElement);
+        });
+    }
+    
+    initProgress() {
+        const progressText = document.querySelector('.progress-text');
+        if (progressText && this.currentUser) {
+            const pointsToNextLevel = 200 - (this.currentUser.points % 200);
+            progressText.textContent = `До ${this.currentUser.level + 1} уровня: ${pointsToNextLevel} очков`;
         }
-        
-        progressFill.style.width = `${newWidth}%`;
-        progressValue.textContent = `${newWidth}%`;
     }
     
     initEvents() {
-        // Кнопка выхода
         const logoutBtn = document.querySelector('.logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
@@ -405,33 +344,13 @@ class Dashboard {
             });
         }
         
-        // Кнопка обновления
         const refreshBtn = document.querySelector('.refresh-btn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
+                this.loadCurrentUser();
+                this.updateStats();
+                this.initRating();
                 this.showNotification('Данные обновлены', 'info');
-                this.animateStats();
-            });
-        }
-        
-        // Статистика при наведении
-        const statItems = document.querySelectorAll('.stat-item');
-        statItems.forEach(item => {
-            item.addEventListener('mouseenter', () => {
-                item.style.transform = 'scale(1.05)';
-            });
-            
-            item.addEventListener('mouseleave', () => {
-                item.style.transform = 'scale(1)';
-            });
-        });
-    }
-    
-    initParticles() {
-        // Проверить, загружена ли библиотека particles.js
-        if (typeof particlesJS !== 'undefined') {
-            particlesJS.load('particles-js', 'js/particles-config.json', function() {
-                console.log('✨ Частицы загружены');
             });
         }
     }
@@ -456,46 +375,20 @@ class Dashboard {
     }
     
     showNotification(message, type = 'info') {
-        // Удалить старые уведомления
-        const oldNotification = document.querySelector('.dashboard-notification');
-        if (oldNotification) {
-            oldNotification.remove();
-        }
-        
-        // Создать новое уведомление
         const notification = document.createElement('div');
-        notification.className = 'dashboard-notification';
-        
-        // Иконка в зависимости от типа
-        let icon = 'info-circle';
-        let backgroundColor = '#3b82f6';
-        
-        switch(type) {
-            case 'success':
-                icon = 'check-circle';
-                backgroundColor = '#10b981';
-                break;
-            case 'error':
-                icon = 'exclamation-circle';
-                backgroundColor = '#ef4444';
-                break;
-            case 'warning':
-                icon = 'exclamation-triangle';
-                backgroundColor = '#f59e0b';
-                break;
-        }
-        
+        notification.className = 'notification';
         notification.innerHTML = `
-            <i class="fas fa-${icon}"></i>
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 
+                              type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
             <span>${message}</span>
         `;
         
-        // Стили уведомления
         notification.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: ${backgroundColor};
+            background: ${type === 'success' ? '#10b981' : 
+                        type === 'error' ? '#ef4444' : '#3b82f6'};
             color: white;
             padding: 16px 24px;
             border-radius: 14px;
@@ -503,131 +396,57 @@ class Dashboard {
             align-items: center;
             gap: 12px;
             z-index: 10000;
-            animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: slideIn 0.4s ease;
             box-shadow: 0 15px 35px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.2);
-            font-weight: 600;
-            backdrop-filter: blur(10px);
         `;
         
         document.body.appendChild(notification);
         
-        // Удалить через 3 секунды
         setTimeout(() => {
-            notification.style.animation = 'slideOut 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, 400);
+            notification.style.animation = 'slideOut 0.4s ease';
+            setTimeout(() => notification.remove(), 400);
         }, 3000);
-        
-        // Добавить стили для анимаций
-        if (!document.querySelector('#notification-styles')) {
-            const style = document.createElement('style');
-            style.id = 'notification-styles';
-            style.textContent = `
-                @keyframes slideIn {
-                    from {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                }
-                
-                @keyframes slideOut {
-                    from {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                    to {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
     }
 }
 
-// Инициализация при загрузке страницы
+// Инициализация
 document.addEventListener('DOMContentLoaded', () => {
-    // Добавить стили для кнопок в сайдбаре
+    // Добавить стили для анимаций
     const style = document.createElement('style');
     style.textContent = `
-        .logout-btn {
-            width: 100%;
-            margin-top: 20px;
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
-        
-        .logout-btn:hover {
-            background: rgba(239, 68, 68, 0.3);
-            transform: translateY(-2px);
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
         }
-        
-        .refresh-btn {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+        .you-badge {
+            font-size: 12px;
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
         }
-        
-        .refresh-btn:hover {
-            background: rgba(16, 185, 129, 0.3);
+        .current-user {
+            background: rgba(139, 92, 246, 0.15) !important;
+            border-color: #8b5cf6 !important;
         }
-        
-        .complete-task-btn {
-            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
-            color: white;
-            border: none;
-            padding: 16px;
-            border-radius: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+        .empty-rating, .empty-tasks {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94a3b8;
         }
-        
-        .complete-task-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 30px rgba(139, 92, 246, 0.4);
-        }
-        
-        /* Анимация для карточек */
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-10px);
-            }
-        }
-        
-        .floating {
-            animation: float 3s ease-in-out infinite;
+        .empty-rating i, .empty-tasks i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.3;
         }
     `;
     document.head.appendChild(style);
     
-    // Создать и инициализировать дашборд
-    const dashboard = new Dashboard();
-    
-    // Запустить анимацию статистики
-    setTimeout(() => {
-        dashboard.animateStats();
-    }, 1000);
-    
-    // Обновлять статистику каждую минуту
-    setInterval(() => {
-        dashboard.animateStats();
-    }, 60000);
+    // Запуск дашборда
+    new Dashboard();
 });
