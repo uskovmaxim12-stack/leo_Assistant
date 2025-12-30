@@ -1,15 +1,15 @@
-// js/database.js - ИСПРАВЛЕННАЯ БАЗА С РЕАЛЬНЫМ РАСПИСАНИЕМ
+// js/database.js - БЕЗ ПРИДУМАННЫХ ДАННЫХ
 class Database {
     constructor() {
-        this.dbName = 'leo_assistant_db_final';
+        this.dbName = 'leo_assistant_clean';
         this.init();
     }
 
     init() {
         if (!localStorage.getItem(this.dbName)) {
-            console.log('📁 Создаем новую базу данных с реальным расписанием...');
+            console.log('📁 Создаем чистую базу данных...');
             
-            // РЕАЛЬНОЕ РАСПИСАНИЕ 7Б класса
+            // ТОЛЬКО РЕАЛЬНОЕ РАСПИСАНИЕ (которое вы предоставили)
             const realSchedule = [
                 {
                     day: "Понедельник",
@@ -85,31 +85,16 @@ class Database {
             ];
 
             const initialData = {
-                version: "3.0",
-                users: [],
+                version: "clean",
+                users: [], // ПУСТО - только те, кто зарегистрируется
                 classes: {
                     "7B": {
                         schedule: realSchedule,
-                        tasks: [
-                            { id: 1, subject: "Математика", title: "№345-348 стр. 45", dueDate: "2024-05-20", priority: "high" },
-                            { id: 2, subject: "Физика", title: "Лаб. работа №3", dueDate: "2024-05-22", priority: "medium" },
-                            { id: 3, subject: "История", title: "Конспект §18", dueDate: "2024-05-25", priority: "low" },
-                            { id: 4, subject: "Английский", title: "Сочинение 'My Family'", dueDate: "2024-05-21", priority: "high" }
-                        ],
-                        students: []
+                        tasks: [], // ПУСТО - задания добавляет учитель через админку
+                        students: [] // ПУСТО - добавляются при регистрации
                     }
                 },
-                ai_knowledge: {
-                    greetings: ["Привет! Я Лео, твой AI помощник.", "Здравствуй! Готов помочь с учебой.", "Приветствую! Чем могу помочь?"],
-                    subjects: {
-                        math: "Математика изучает числа, структуры, пространство и изменения.",
-                        physics: "Физика - наука о природе, изучающая материю, энергию и их взаимодействие.",
-                        history: "История изучает прошлое человечества по письменным источникам.",
-                        literature: "Литература изучает художественные произведения и их авторов.",
-                        biology: "Биология изучает живые организмы и их взаимодействие с окружающей средой."
-                    },
-                    schedule: "Расписание можно посмотреть в разделе 'Расписание'. Сегодня у вас уроки по расписанию."
-                },
+                ai_knowledge: {}, // ПУСТО - знания добавляет администратор
                 system: {
                     admin_password: "admin123",
                     total_logins: 0,
@@ -118,7 +103,7 @@ class Database {
                 }
             };
             
-            // СОЗДАЕМ ТОЛЬКО ОДНОГО АДМИНИСТРАТОРА
+            // ТОЛЬКО АДМИНИСТРАТОР (базовый)
             initialData.users.push({
                 id: 1,
                 login: "admin",
@@ -128,14 +113,14 @@ class Database {
                 class: "admin",
                 role: "admin",
                 points: 0,
-                level: 99,
+                level: 1,
                 created_at: new Date().toISOString(),
                 tasks_completed: [],
                 settings: {}
             });
             
             this.save(initialData);
-            console.log('✅ База данных создана с реальным расписанием');
+            console.log('✅ Чистая база данных создана');
         }
     }
 
@@ -175,7 +160,10 @@ class Database {
             return { success: false, error: "Логин не может быть пустым" };
         }
 
-        // Проверяем, нет ли уже такого логина
+        if (login.length < 3) {
+            return { success: false, error: "Логин должен быть не менее 3 символов" };
+        }
+
         const userExists = db.users.some(u => 
             u.login.toLowerCase() === login.toLowerCase()
         );
@@ -194,7 +182,6 @@ class Database {
             return { success: false, error: "Пароль должен быть не менее 4 символов" };
         }
 
-        // Создаем нового пользователя
         const newUser = {
             id: Date.now(),
             login: login,
@@ -215,7 +202,6 @@ class Database {
 
         db.users.push(newUser);
         
-        // Добавляем в класс
         if (!db.classes["7B"].students) {
             db.classes["7B"].students = [];
         }
@@ -239,10 +225,7 @@ class Database {
     // Авторизация пользователя
     authUser(login, password) {
         const db = this.getAll();
-        if (!db) {
-            console.error('❌ База данных не найдена');
-            return null;
-        }
+        if (!db) return null;
 
         const user = db.users.find(u => 
             u.login.toLowerCase() === login.toLowerCase() && 
@@ -250,13 +233,10 @@ class Database {
         );
 
         if (user) {
-            // Обновляем статистику логинов
             db.system.total_logins = (db.system.total_logins || 0) + 1;
             user.last_login = new Date().toISOString();
-            
             this.save(db);
             
-            // Убираем пароль из возвращаемых данных
             const { password: _, ...userWithoutPassword } = user;
             return userWithoutPassword;
         }
@@ -268,23 +248,12 @@ class Database {
     authAdmin(password) {
         const db = this.getAll();
         if (!db) return false;
-
         return password === db.system.admin_password;
     }
 
-    // Получить рейтинг класса
-    getClassRating() {
-        const db = this.getAll();
-        if (!db || !db.classes["7B"] || !db.classes["7B"].students) {
-            return [];
-        }
-
-        return db.classes["7B"].students
-            .sort((a, b) => b.points - a.points)
-            .slice(0, 20);
-    }
-
-    // Получить расписание
+    // ===== ДАННЫЕ =====
+    
+    // РЕАЛЬНОЕ РАСПИСАНИЕ
     getSchedule(dayName = null) {
         const db = this.getAll();
         if (!db || !db.classes["7B"] || !db.classes["7B"].schedule) {
@@ -300,26 +269,96 @@ class Database {
         return db.classes["7B"].schedule;
     }
 
-    // Получить расписание на сегодня
     getTodaySchedule() {
         const days = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
-        const today = new Date().getDay(); // 0 = воскресенье, 1 = понедельник...
+        const today = new Date().getDay();
         const todayName = days[today];
-        
         return this.getSchedule(todayName);
     }
 
-    // Получить задания
+    // РЕЙТИНГ
+    getClassRating() {
+        const db = this.getAll();
+        if (!db || !db.classes["7B"] || !db.classes["7B"].students) {
+            return [];
+        }
+
+        return db.classes["7B"].students
+            .sort((a, b) => b.points - a.points)
+            .slice(0, 20);
+    }
+
+    // ЗАДАНИЯ (пусто изначально)
     getTasks() {
         const db = this.getAll();
         if (!db || !db.classes["7B"] || !db.classes["7B"].tasks) {
             return [];
         }
-
         return db.classes["7B"].tasks;
     }
 
-    // ===== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
+    // AI ЗНАНИЯ (пусто изначально)
+    getAIKnowledge() {
+        const db = this.getAll();
+        if (!db || !db.ai_knowledge) {
+            return {};
+        }
+        return db.ai_knowledge;
+    }
+
+    // ===== УПРАВЛЕНИЕ ДАННЫМИ =====
+    
+    // Добавить задание (только админ)
+    addTask(taskData) {
+        const db = this.getAll();
+        if (!db) return false;
+
+        const newTask = {
+            id: Date.now(),
+            subject: taskData.subject?.trim() || "Без предмета",
+            title: taskData.title?.trim() || "Новое задание",
+            dueDate: taskData.dueDate || new Date().toISOString().split('T')[0],
+            priority: taskData.priority || "medium",
+            created_at: new Date().toISOString(),
+            created_by: taskData.created_by || "admin",
+            completed_by: []
+        };
+
+        if (!db.classes["7B"].tasks) {
+            db.classes["7B"].tasks = [];
+        }
+
+        db.classes["7B"].tasks.push(newTask);
+        return this.save(db);
+    }
+
+    // Удалить задание
+    removeTask(taskId) {
+        const db = this.getAll();
+        if (!db || !db.classes["7B"] || !db.classes["7B"].tasks) return false;
+
+        db.classes["7B"].tasks = db.classes["7B"].tasks.filter(task => task.id !== taskId);
+        return this.save(db);
+    }
+
+    // Добавить знания AI
+    addAIKnowledge(category, question, answer) {
+        const db = this.getAll();
+        if (!db) return false;
+
+        if (!db.ai_knowledge) {
+            db.ai_knowledge = {};
+        }
+
+        if (!db.ai_knowledge[category]) {
+            db.ai_knowledge[category] = {};
+        }
+
+        db.ai_knowledge[category][question.toLowerCase()] = answer;
+        return this.save(db);
+    }
+
+    // ===== ВСПОМОГАТЕЛЬНЫЕ =====
     
     generateAvatar(name) {
         const names = name.split(' ').filter(n => n.length > 0);
@@ -332,7 +371,6 @@ class Database {
         return "??";
     }
 
-    // Отметить задание выполненным
     completeTask(userId, taskId) {
         const db = this.getAll();
         if (!db) return false;
@@ -342,25 +380,25 @@ class Database {
         
         if (!user || !task) return false;
 
-        // Проверяем, не выполнено ли уже задание
         if (user.tasks_completed.includes(taskId)) {
             return false;
         }
 
-        // Добавляем очки
         user.points += 50;
         user.tasks_completed.push(taskId);
 
-        // Обновляем рейтинг в классе
         const studentInClass = db.classes["7B"].students?.find(s => s.id === userId);
         if (studentInClass) {
             studentInClass.points = user.points;
         }
 
-        this.save(db);
-        return true;
+        if (!task.completed_by) {
+            task.completed_by = [];
+        }
+        task.completed_by.push(userId);
+
+        return this.save(db);
     }
 }
 
-// Создаем глобальный экземпляр
 window.leoDB = new Database();
